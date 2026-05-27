@@ -91,7 +91,7 @@ function AppFooter() {
         </div>
 
         {/* Copyright */}
-        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-end', alignSelf: 'stretch', fontSize: 13, gap: 4 }}>
+        <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-end', alignSelf: 'stretch', fontSize: 13, gap: 4, whiteSpace: 'nowrap' }}>
           <span>site made by <a href="https://github.com/Quackk08" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => (e.currentTarget.style.textDecoration='underline')} onMouseLeave={e => (e.currentTarget.style.textDecoration='none')}>Quackk08</a></span>
           <span>© 2026 <strong style={{ fontWeight: 700 }}>ACT.</strong> All rights reserved.</span>
         </div>
