@@ -39,7 +39,7 @@ export default function Footer() {
         <div className="ml-auto flex flex-col items-end justify-between self-stretch text-sm">
           <div />
           <div className="flex flex-col items-end gap-0.5">
-            <span>site made by <strong className="font-bold">Quackk08</strong></span>
+            <span>site made by <a href="https://github.com/Quackk08" target="_blank" rel="noopener noreferrer" className="font-bold hover:underline" style={{ color: 'inherit' }}>Quackk08</a></span>
             <span>© 2026 <strong className="font-bold">ACT.</strong> All rights reserved.</span>
           </div>
         </div>
