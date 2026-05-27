@@ -124,7 +124,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     })
-    if (error) return { error: error.message }
+    if (error) {
+      const msg = error.message
+      // Supabase가 빈 JSON {} 또는 빈 문자열로 내려오는 경우 → 메일 발송 실패
+      if (!msg || msg === '{}' || msg === 'null' || msg.trim() === '') {
+        return { error: '인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.' }
+      }
+      if (msg.toLowerCase().includes('sending') || msg.toLowerCase().includes('email')) {
+        return { error: '인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해주세요.' }
+      }
+      return { error: msg }
+    }
 
     // Email confirmation required (Supabase 이메일 인증 ON인 경우)
     if (data.user && !data.session) {
