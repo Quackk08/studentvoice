@@ -65,7 +65,7 @@ export function validateOfficialReply(params: { content: string; signedBy: strin
 }
 
 export function validatePassword(value: string) {
-  if (value.length < 15) return '비밀번호는 15자 이상으로 설정해주세요.'
+  if (value.length < 8) return '비밀번호는 8자 이상으로 설정해주세요.'
   if (value.length > 128) return '비밀번호는 128자 이하로 입력해주세요.'
   return null
 }
