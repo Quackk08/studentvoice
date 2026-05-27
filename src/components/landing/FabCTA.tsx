@@ -1,16 +1,23 @@
 import { useNavigate } from 'react-router'
 import { COLORS } from '../../tokens/tokens'
+import { useHomeStats } from '../../hooks/useProposals'
 
 export default function FabCTA() {
   const navigate = useNavigate()
+  const { stats, loading } = useHomeStats()
+
+  const participantText = loading
+    ? '학생들이 이미 참여했습니다. 당신의 목소리를 들려주세요.'
+    : `${stats.profiles.toLocaleString('ko-KR')}명의 학생이 이미 참여했습니다. 당신의 목소리를 들려주세요.`
+
   return (
     <section id="cta" className="py-25 text-center" style={{ background: COLORS.ink, color: 'white' }}>
       <div className="max-w-prose mx-auto px-15">
         <h2 className="text-10xl font-black m-0 tracking-tighter leading-tight mb-6">
           오늘, 학교에<br/>한 표.
         </h2>
-        <p className="text-xl text-white leading-relaxed mb-9" style={{ opacity: 0.8 }}>
-          714명의 학생이 이미 참여했습니다. 당신의 목소리를 들려주세요.
+        <p className="text-xl text-white leading-relaxed mb-9" style={{ opacity: loading ? 0.45 : 0.8 }}>
+          {participantText}
         </p>
         <button
           onClick={() => navigate('/login')}
