@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import GuidelinesPage from './pages/GuidelinesPage'
@@ -34,6 +35,7 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <SpeedInsights />
     </Router>
   )
 }
