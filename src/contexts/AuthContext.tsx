@@ -41,6 +41,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // 이전에 sessionStorage를 storage로 사용했던 stale 세션 키를 정리.
+    // 현재는 localStorage를 사용하므로 sessionStorage의 Supabase 토큰은 불필요.
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? ''
+      const projectRef = supabaseUrl.match(/\/\/([^.]+)\.supabase\.co/)?.[1]
+      if (projectRef) {
+        window.sessionStorage.removeItem(`sb-${projectRef}-auth-token`)
+      }
+    } catch { /* ignore */ }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -68,13 +78,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const normalizedEmail = email.trim().toLowerCase()
     if (!isSchoolEmail(normalizedEmail)) return { error: 'Invalid credentials.' }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
-    if (error) return { error: error.message }
-    if (!isEmailVerified(data.user)) {
-      await supabase.auth.signOut()
-      return { error: '이메일 본인 인증을 먼저 완료해주세요.' }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
+      if (error) return { error: error.message }
+      if (!isEmailVerified(data.user)) {
+        await supabase.auth.signOut()
+        return { error: '이메일 본인 인증을 먼저 완료해주세요.' }
+      }
+      return { error: null }
+    } catch (e) {
+      // 헤더 인코딩 오류 등 예기치 않은 fetch 오류 처리
+      if (e instanceof TypeError) {
+        try { await supabase.auth.signOut() } catch { /* ignore */ }
+        return { error: '로그인 중 오류가 발생했습니다. 페이지를 새로고침 후 다시 시도해주세요.' }
+      }
+      return { error: '알 수 없는 오류가 발생했습니다.' }
     }
-    return { error: null }
   }
 
   const signUp = async (params: {
