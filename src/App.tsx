@@ -10,6 +10,7 @@ import ProposalDetailPage from './pages/ProposalDetailPage'
 import MyPage from './pages/MyPage'
 import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/shared/ProtectedRoute'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/guidelines" element={<GuidelinesPage />} />
 
         {/* Protected — requires auth + agreed to guidelines */}

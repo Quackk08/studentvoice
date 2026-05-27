@@ -4,6 +4,7 @@ import MicMark from '../components/shared/MicMark'
 import Btn from '../components/shared/Btn'
 import { useAuth } from '../contexts/AuthContext'
 import { isSchoolEmail, normalizeText, validatePassword } from '../lib/security'
+import { supabase } from '../lib/supabase'
 import { COLORS } from '../tokens/tokens'
 
 // ── InputField ──────────────────────────────────────────────
@@ -177,8 +178,8 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const { signIn, signUp, profile } = useAuth()
 
-  // Mode: 'login' | 'signup'
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  // Mode: 'login' | 'signup' | 'forgot'
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login')
 
   // Shared fields
   const [email, setEmail]       = useState('')
@@ -198,10 +199,24 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [remember, setRemember]   = useState(false)
 
-  const switchMode = (m: 'login' | 'signup') => {
+  const switchMode = (m: 'login' | 'signup' | 'forgot') => {
     setMode(m)
     setErrorMsg(null)
     setSuccessMsg(null)
+  }
+
+  // ── Forgot password ──
+  const handleForgotPassword = async () => {
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail) { setErrorMsg('이메일을 입력해주세요.'); return }
+    if (!isSchoolEmail(normalizedEmail)) { setErrorMsg('대전대신고 이메일(@dshs.kr)만 사용할 수 있습니다.'); return }
+    setIsLoading(true); setErrorMsg(null)
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    setIsLoading(false)
+    if (error) { setErrorMsg('링크 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'); return }
+    setSuccessMsg(`${normalizedEmail} 으로 재설정 링크를 보냈습니다. 학교 이메일함을 확인해주세요.`)
   }
 
   // ── Login ──
@@ -329,32 +344,34 @@ export default function LoginPage() {
       >
         <div style={{ width: '100%', maxWidth: 380 }}>
 
-          {/* Mode toggle */}
-          <div
-            style={{
-              display: 'flex', gap: 0, marginBottom: 32,
-              border: `1px solid ${COLORS.line}`, borderRadius: 12,
-              padding: 4, background: COLORS.surfaceAlt,
-            }}
-          >
-            {(['login', 'signup'] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => switchMode(m)}
-                style={{
-                  flex: 1, height: 38, borderRadius: 9, border: 'none',
-                  background: mode === m ? COLORS.surface : 'transparent',
-                  color: mode === m ? COLORS.ink : COLORS.inkSub,
-                  fontSize: 13, fontWeight: mode === m ? 700 : 500,
-                  cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
-                  boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all .15s',
-                }}
-              >
-                {m === 'login' ? '로그인' : '회원가입'}
-              </button>
-            ))}
-          </div>
+          {/* Mode toggle — hidden in forgot mode */}
+          {mode !== 'forgot' && (
+            <div
+              style={{
+                display: 'flex', gap: 0, marginBottom: 32,
+                border: `1px solid ${COLORS.line}`, borderRadius: 12,
+                padding: 4, background: COLORS.surfaceAlt,
+              }}
+            >
+              {(['login', 'signup'] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => switchMode(m)}
+                  style={{
+                    flex: 1, height: 38, borderRadius: 9, border: 'none',
+                    background: mode === m ? COLORS.surface : 'transparent',
+                    color: mode === m ? COLORS.ink : COLORS.inkSub,
+                    fontSize: 13, fontWeight: mode === m ? 700 : 500,
+                    cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
+                    boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all .15s',
+                  }}
+                >
+                  {m === 'login' ? '로그인' : '회원가입'}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* ─── LOGIN MODE ─── */}
           {mode === 'login' && (
@@ -425,6 +442,15 @@ export default function LoginPage() {
                   style={{ color: COLORS.brand, fontWeight: 600, cursor: 'pointer' }}
                 >
                   계정이 없으신가요? →
+                </span>
+              </div>
+
+              <div style={{ marginTop: 10, textAlign: 'right' }}>
+                <span
+                  onClick={() => switchMode('forgot')}
+                  style={{ fontSize: 12, color: COLORS.inkMuted, cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  비밀번호를 잊으셨나요?
                 </span>
               </div>
             </>
@@ -536,6 +562,71 @@ export default function LoginPage() {
             </>
           )}
 
+          {/* ─── FORGOT PASSWORD MODE ─── */}
+          {mode === 'forgot' && (
+            <>
+              <button
+                onClick={() => switchMode('login')}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  border: 'none', background: 'none', cursor: 'pointer',
+                  fontSize: 13, color: COLORS.inkSub, fontFamily: 'inherit',
+                  padding: 0, marginBottom: 24,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 4L6 8l4 4" stroke={COLORS.inkSub} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                로그인으로 돌아가기
+              </button>
+
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', color: COLORS.inkMuted, marginBottom: 12 }}>
+                RESET PASSWORD
+              </div>
+              <h2 style={{ fontSize: 28, fontWeight: 700, margin: 0, letterSpacing: '-0.025em' }}>
+                비밀번호 재설정
+              </h2>
+              <p style={{ fontSize: 13, color: COLORS.inkSub, marginTop: 8, lineHeight: 1.6 }}>
+                가입한 학교 이메일로 재설정 링크를 보내드립니다.
+              </p>
+
+              {successMsg ? (
+                <div style={{ marginTop: 28 }}>
+                  <SuccessBanner msg={successMsg} />
+                  <Btn
+                    variant="outline" size="md" full
+                    style={{ marginTop: 16 }}
+                    onClick={() => switchMode('login')}
+                  >
+                    로그인 화면으로
+                  </Btn>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginTop: 28 }}>
+                    <InputField
+                      label="학교 이메일"
+                      placeholder="학번@dshs.kr"
+                      value={email}
+                      onChange={setEmail}
+                      onEnter={handleForgotPassword}
+                    />
+                  </div>
+
+                  {errorMsg && <div style={{ marginTop: 12 }}><ErrorBanner msg={errorMsg} /></div>}
+
+                  <Btn
+                    variant="brand" size="lg" full
+                    style={{ marginTop: 20, opacity: isLoading ? 0.7 : 1 }}
+                    onClick={handleForgotPassword} disabled={isLoading}
+                  >
+                    {isLoading ? '전송 중…' : '재설정 링크 보내기'}
+                  </Btn>
+                </>
+              )}
+            </>
+          )}
+
           {/* Footer note */}
           <div
             style={{
@@ -545,7 +636,7 @@ export default function LoginPage() {
             }}
           >
             본 서비스는 대전대신고등학교 재학생만 이용할 수 있습니다.<br />
-            문의: 학생회 운영팀 · studentcouncil@dshs.kr
+            문의: 학생회 운영팀 · 25_kjy1012@dshs.kr
           </div>
         </div>
       </div>
