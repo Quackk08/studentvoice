@@ -28,18 +28,21 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="ml-auto max-w-85">
+        <div className="flex-shrink-0 max-w-72">
           <div className="text-sm font-bold tracking-widest mb-2.5">PRIVACY POLICY</div>
           <div className="text-xs leading-6 text-white/75">
             학생의 목소리는 학교 이메일 인증, 안건 작성, 투표 및 알림 제공에 필요한 최소한의 정보만 수집하며,
             수집된 정보는 서비스 운영과 학교 의견 전달 목적 외에는 사용하지 않습니다.
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-col items-end mt-7 text-sm">
-        <span>site made by <strong className="font-bold">Quackk08</strong></span>
-        <span>© 2026 <strong className="font-bold">ACT.</strong> All rights reserved.</span>
+        <div className="ml-auto flex flex-col items-end justify-between self-stretch text-sm">
+          <div />
+          <div className="flex flex-col items-end gap-0.5">
+            <span>site made by <strong className="font-bold">Quackk08</strong></span>
+            <span>© 2026 <strong className="font-bold">ACT.</strong> All rights reserved.</span>
+          </div>
+        </div>
       </div>
     </footer>
   )

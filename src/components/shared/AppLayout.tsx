@@ -82,18 +82,19 @@ function AppFooter() {
         </div>
 
         {/* PRIVACY */}
-        <div style={{ marginLeft: 'auto', maxWidth: 340 }}>
+        <div style={{ flexShrink: 0, maxWidth: 290 }}>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 10 }}>PRIVACY POLICY</div>
           <div style={{ fontSize: 12.5, fontWeight: 400, lineHeight: 1.75, color: 'rgba(255,255,255,0.78)' }}>
             학생의 목소리는 학교 이메일 인증, 안건 작성, 투표 및 알림 제공에 필요한 최소한의 정보만 수집하며,
             수집된 정보는 서비스 운영과 학교 의견 전달 목적 외에는 사용하지 않습니다.
           </div>
         </div>
-      </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: 28, fontSize: 13 }}>
-        <span>site made by <strong style={{ fontWeight: 700 }}>Quackk08</strong></span>
-        <span>© 2026 <strong style={{ fontWeight: 700 }}>ACT.</strong> All rights reserved.</span>
+        {/* Copyright */}
+        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-end', alignSelf: 'stretch', fontSize: 13, gap: 4 }}>
+          <span>site made by <strong style={{ fontWeight: 700 }}>Quackk08</strong></span>
+          <span>© 2026 <strong style={{ fontWeight: 700 }}>ACT.</strong> All rights reserved.</span>
+        </div>
       </div>
     </footer>
   )
