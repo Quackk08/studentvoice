@@ -285,7 +285,16 @@ export default function HomePage() {
                   marginBottom: 14,
                 }}
               >
-                VOICE OF DAESHIN — 2026 SPRING
+                {(() => {
+                  const now = new Date()
+                  const year = now.getFullYear()
+                  const month = now.getMonth() + 1
+                  const season =
+                    month >= 3 && month <= 5 ? 'SPRING' :
+                    month >= 6 && month <= 8 ? 'SUMMER' :
+                    month >= 9 && month <= 11 ? 'AUTUMN' : 'WINTER'
+                  return `VOICE OF DAESHIN — ${year} ${season}`
+                })()}
               </div>
               <h1
                 style={{
