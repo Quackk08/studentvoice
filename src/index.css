@@ -37,3 +37,24 @@
 .live-dot {
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
+
+/* Portrait orientation overlay */
+.portrait-overlay {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 1024px) {
+  .portrait-overlay {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #F4F2EC;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 40px 32px;
+    text-align: center;
+  }
+}
