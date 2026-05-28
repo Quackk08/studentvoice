@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import MicMark from '../components/shared/MicMark'
 import Btn from '../components/shared/Btn'
 import { useAuth, isEmailVerified } from '../contexts/AuthContext'
@@ -176,6 +176,7 @@ function SuccessBanner({ msg }: { msg: string }) {
 // ════════════════════════════════════════════════════════════
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { signIn, signUp, profile, user, loading } = useAuth()
 
   // 이미 로그인된 상태(이메일 확인 후 리디렉션 포함)이면 자동 이동
@@ -203,7 +204,11 @@ export default function LoginPage() {
 
   // UI state
   const [errorMsg, setErrorMsg]   = useState<string | null>(null)
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(
+    searchParams.get('confirmed') === 'true'
+      ? '이메일 인증이 완료되었습니다. 로그인해주세요.'
+      : null,
+  )
   const [isLoading, setIsLoading] = useState(false)
   const [remember, setRemember]   = useState(false)
 
