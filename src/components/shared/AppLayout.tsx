@@ -19,7 +19,7 @@ export default function AppLayout({
   return (
     <div className="min-h-screen flex flex-col bg-bg font-sans text-ink tracking-snug">
       <AppHeader active={active} isAdmin={isAdmin} />
-      <main className="flex-1 flex flex-col pb-16 sm:pb-0">{children}</main>
+      <main className="flex-1 flex flex-col pb-16 lg:pb-0">{children}</main>
       {showFooter && <AppFooter />}
       <BottomNav />
     </div>
@@ -28,7 +28,7 @@ export default function AppLayout({
 
 function AppFooter() {
   return (
-    <footer className="hidden sm:block bg-footer-bg text-white px-15 pt-10 pb-8 font-sans">
+    <footer className="hidden lg:block bg-footer-bg text-white px-15 pt-10 pb-8 font-sans">
       <div className="flex flex-col sm:flex-row sm:items-start gap-8 sm:gap-20">
         {/* Logo */}
         <div className="flex items-center gap-2.5 sm:min-w-[170px] flex-shrink-0">

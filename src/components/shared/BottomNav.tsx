@@ -47,7 +47,7 @@ export default function BottomNav() {
   const { pathname } = useLocation()
 
   return (
-    <nav className="sm:hidden fixed bottom-0 inset-x-0 z-50 bg-surface border-t border-line" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-surface border-t border-line" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="flex h-16">
         {TABS.map(tab => {
           const active = pathname === tab.to || (tab.to !== '/home' && pathname.startsWith(tab.to))

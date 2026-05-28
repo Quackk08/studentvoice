@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import MicMark from '../components/shared/MicMark'
 import Btn from '../components/shared/Btn'
@@ -239,11 +239,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col sm:grid bg-surface font-sans text-ink tracking-snug" style={{ gridTemplateColumns: '1fr 1fr' }}>
+    <div className="min-h-screen flex flex-col lg:grid bg-surface font-sans text-ink tracking-snug" style={{ gridTemplateColumns: '1fr 1fr' }}>
 
       {/* ── Left visual — desktop only ── */}
       <div
-        className="hidden sm:flex flex-col relative overflow-hidden px-14 pt-14 pb-12"
+        className="hidden lg:flex flex-col relative overflow-hidden px-14 pt-14 pb-12"
         style={{ background: COLORS.bg }}
       >
         <div className="flex items-center gap-2.5">
@@ -280,9 +280,9 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right form ── */}
-      <div className="flex flex-col items-center justify-center px-6 py-10 sm:px-12 sm:py-12 overflow-y-auto">
+      <div className="flex flex-col items-center justify-center px-6 py-10 lg:px-12 lg:py-12 overflow-y-auto">
         {/* Mobile logo */}
-        <div className="sm:hidden flex items-center gap-2.5 mb-8 self-start">
+        <div className="lg:hidden flex items-center gap-2.5 mb-8 self-start">
           <MicMark size={24} color={COLORS.ink} />
           <div className="flex flex-col leading-none">
             <span className="font-bold text-lg text-ink" style={{ letterSpacing: '-0.01em' }}>학생의 목소리</span>

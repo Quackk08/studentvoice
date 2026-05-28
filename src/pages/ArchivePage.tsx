@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
@@ -79,7 +79,7 @@ export default function ArchivePage() {
   return (
     <AppLayout active="archive">
       {/* Hero + tabs */}
-      <section className="px-4 sm:px-12 pt-10 sm:pt-14 pb-6 bg-bg">
+      <section className="px-4 lg:px-12 pt-10 lg:pt-14 pb-6 bg-bg">
         <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.18em' }}>
           ARCHIVE
         </div>
@@ -123,7 +123,7 @@ export default function ArchivePage() {
             })}
 
             {/* Search — hidden on mobile, shown on sm+ */}
-            <div className="hidden sm:flex ml-auto items-center gap-3 pb-1">
+            <div className="hidden lg:flex ml-auto items-center gap-3 pb-1">
               <div className="flex items-center gap-2 px-3 border border-line rounded-2 bg-surface h-9">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
                   <circle cx="7" cy="7" r="4.5" stroke={COLORS.inkSub} strokeWidth="1.4" />
@@ -144,7 +144,7 @@ export default function ArchivePage() {
           </div>
 
           {/* Mobile search row */}
-          <div className="flex sm:hidden items-center gap-2 py-2">
+          <div className="flex lg:hidden items-center gap-2 py-2">
             <div className="flex-1 flex items-center gap-2 px-3 border border-line rounded-2 bg-surface h-9">
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                 <circle cx="7" cy="7" r="4.5" stroke={COLORS.inkSub} strokeWidth="1.4" />
@@ -162,7 +162,7 @@ export default function ArchivePage() {
       </section>
 
       {/* Archive list */}
-      <section className="px-4 sm:px-12 pt-8 pb-20 bg-bg">
+      <section className="px-4 lg:px-12 pt-8 pb-20 bg-bg">
         {loading ? (
           <div className="py-15 text-center text-ink-muted text-sm">불러오는 중…</div>
         ) : data.length === 0 ? (
@@ -183,7 +183,7 @@ export default function ArchivePage() {
               return (
                 <div
                   key={a.id}
-                  className="bg-surface border border-line rounded-4 p-6 sm:p-7 flex flex-col sm:grid sm:gap-8"
+                  className="bg-surface border border-line rounded-4 p-6 sm:p-7 flex flex-col lg:grid lg:gap-8"
                   style={{ gridTemplateColumns: '1fr 280px' }}
                 >
                   {/* Left */}
@@ -221,8 +221,8 @@ export default function ArchivePage() {
                   </div>
 
                   {/* Right */}
-                  <div className="flex sm:flex-col sm:justify-between sm:items-end gap-3 mt-4 sm:mt-0 items-center">
-                    <div className="sm:text-right">
+                  <div className="flex lg:flex-col lg:justify-between lg:items-end gap-3 mt-4 lg:mt-0 items-center">
+                    <div className="lg:text-right">
                       <div className="text-xs text-ink-muted" style={{ letterSpacing: '0.08em' }}>VOTES</div>
                       <div
                         className="text-8xl font-extrabold text-ink"

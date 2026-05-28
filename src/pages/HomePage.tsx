@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router'
+﻿import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
 import ProgressBar from '../components/shared/ProgressBar'
@@ -172,8 +172,8 @@ export default function HomePage() {
     <AppLayout active="home" isAdmin={profile?.is_admin ?? false}>
       <div className="relative flex-1">
         {/* Hero */}
-        <section className="px-4 sm:px-12 pt-8 sm:pt-12 pb-6 bg-bg">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-6">
+        <section className="px-4 lg:px-12 pt-8 lg:pt-12 pb-6 bg-bg">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6">
             <div>
               <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.18em' }}>
                 VOICE OF DAESHIN — 2026 SPRING
@@ -187,7 +187,7 @@ export default function HomePage() {
             </div>
 
             {/* Stats widget */}
-            <div className="flex sm:flex-shrink-0 gap-6 sm:gap-8 bg-surface border border-line rounded-3.5 px-5 py-4 sm:px-5.5 sm:py-4.5 items-center">
+            <div className="flex lg:flex-shrink-0 gap-6 sm:gap-8 bg-surface border border-line rounded-3.5 px-5 py-4 sm:px-5.5 sm:py-4.5 items-center">
               <Stat n={String(stats.active)}        l="진행 중 안건"  loading={statsLoading} />
               <div className="w-px h-9 bg-line-soft" />
               <Stat n={String(stats.selected)}      l="선정된 안건"  loading={statsLoading} />
@@ -198,7 +198,7 @@ export default function HomePage() {
         </section>
 
         {/* Popular issues */}
-        <section className="px-4 sm:px-12 pt-8 sm:pt-9 pb-6 bg-bg">
+        <section className="px-4 lg:px-12 pt-8 lg:pt-9 pb-6 bg-bg">
           <SectionHeader
             kicker="인기 이슈"
             title="곧 선정될 안건들"
@@ -209,7 +209,7 @@ export default function HomePage() {
             style={{ gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' }}
           >
             {/* Mobile: single column */}
-            <div className="sm:hidden grid grid-cols-1 gap-4">
+            <div className="lg:hidden grid grid-cols-1 gap-4">
               {popularLoading ? (
                 [0,1,2].map(i => (
                   <div key={i} style={{ height: 200 }} className="rounded-4 bg-surface-alt animate-pulse" />
@@ -228,7 +228,7 @@ export default function HomePage() {
               )}
             </div>
             {/* Desktop: 3-col with large first card */}
-            <div className="hidden sm:grid gap-4.5 mt-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr' }}>
+            <div className="hidden lg:grid gap-4.5 mt-0" style={{ gridTemplateColumns: '1.4fr 1fr 1fr' }}>
               {popularLoading ? (
                 [0,1,2].map(i => (
                   <div key={i} style={{ height: i===0?280:240 }} className="rounded-4 bg-surface-alt animate-pulse" />
@@ -250,7 +250,7 @@ export default function HomePage() {
         </section>
 
         {/* Selected issues */}
-        <section className="px-4 sm:px-12 pt-8 sm:pt-9 pb-20 sm:pb-20 bg-bg">
+        <section className="px-4 lg:px-12 pt-8 lg:pt-9 pb-20 lg:pb-20 bg-bg">
           <SectionHeader
             kicker="선정된 안건"
             title="학생회로 전달된 의견"
@@ -277,13 +277,13 @@ export default function HomePage() {
                   <div
                     key={s.id}
                     onClick={() => navigate(`/proposals/${s.id}`)}
-                    className="cursor-pointer px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:grid sm:items-center gap-2 sm:gap-4"
+                    className="cursor-pointer px-4 sm:px-6 py-4 sm:py-5 flex flex-col lg:grid lg:items-center gap-2 lg:gap-4"
                     style={{
                       gridTemplateColumns: '60px 1fr 220px 130px 80px',
                       borderTop: i ? `1px solid ${COLORS.lineSoft}` : 'none',
                     }}
                   >
-                    <div className="hidden sm:block">
+                    <div className="hidden lg:block">
                       <span
                         className="text-4xl font-bold text-ink-muted"
                         style={{ fontFeatureSettings: '"tnum"', letterSpacing: '-0.02em' }}
@@ -302,13 +302,13 @@ export default function HomePage() {
                         {s.title}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 sm:contents">
+                    <div className="flex items-center gap-3 lg:contents">
                       <div><Badge tone={tone}>{label}</Badge></div>
                       <div className="text-sm text-ink">
                         <strong className="font-bold">{s.vote_count}</strong>
                         <span className="text-ink-muted"> 표 추천</span>
                       </div>
-                      <span className="hidden sm:block text-xs text-ink-muted justify-self-end">→</span>
+                      <span className="hidden lg:block text-xs text-ink-muted justify-self-end">→</span>
                     </div>
                   </div>
                 )
@@ -320,7 +320,7 @@ export default function HomePage() {
         {/* FAB — desktop only */}
         <div
           onClick={() => navigate('/write')}
-          className="hidden sm:flex fixed right-9 bottom-9 z-50 items-center gap-3 rounded-full text-white text-base font-semibold cursor-pointer"
+          className="hidden lg:flex fixed right-9 bottom-9 z-50 items-center gap-3 rounded-full text-white text-base font-semibold cursor-pointer"
           style={{
             background: COLORS.ink,
             padding: '14px 22px 14px 18px',

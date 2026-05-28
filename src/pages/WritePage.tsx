@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Btn from '../components/shared/Btn'
@@ -42,7 +42,7 @@ export default function WritePage() {
 
   return (
     <AppLayout active="write" isAdmin={profile?.is_admin ?? false}>
-      <section className="px-4 sm:px-12 pt-10 sm:pt-14 pb-20 bg-bg">
+      <section className="px-4 lg:px-12 pt-10 lg:pt-14 pb-20 bg-bg">
         <div className="max-w-[880px] mx-auto">
           <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.18em' }}>
             NEW PROPOSAL
@@ -65,7 +65,7 @@ export default function WritePage() {
           </div>
 
           {/* Form card */}
-          <div className="mt-6 bg-surface border border-line rounded-4 px-6 sm:px-10 py-8 sm:py-9">
+          <div className="mt-6 bg-surface border border-line rounded-4 px-6 lg:px-10 py-8 sm:py-9">
             {/* Category */}
             <div className="mb-7">
               <div className="text-xs font-semibold text-ink mb-2.5">카테고리</div>
@@ -119,7 +119,7 @@ export default function WritePage() {
 
             {/* Bottom row */}
             <div
-              className="mt-7 pt-6 border-t border-line-soft flex flex-col sm:flex-row sm:items-center gap-4"
+              className="mt-7 pt-6 border-t border-line-soft flex flex-col lg:flex-row lg:items-center gap-4"
             >
               <label
                 onClick={() => setAnonymous(!anonymous)}
@@ -138,9 +138,9 @@ export default function WritePage() {
               </label>
 
               {errorMsg && (
-                <div className="text-xs text-warn sm:mr-auto sm:max-w-xs">{errorMsg}</div>
+                <div className="text-xs text-warn lg:mr-auto lg:max-w-xs">{errorMsg}</div>
               )}
-              <div className="sm:ml-auto flex gap-2.5">
+              <div className="lg:ml-auto flex gap-2.5">
                 <Btn variant="outline" size="md" onClick={() => navigate('/home')}>
                   취소
                 </Btn>

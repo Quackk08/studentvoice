@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
@@ -262,7 +262,7 @@ export default function ProposalDetailPage() {
       }
       isAdmin={IS_ADMIN}
     >
-      <section className="px-4 sm:px-12 pt-8 sm:pt-10 pb-20 bg-bg">
+      <section className="px-4 lg:px-12 pt-8 lg:pt-10 pb-20 bg-bg">
         <div className="max-w-[1080px] mx-auto flex flex-col lg:grid lg:gap-8" style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}>
 
           {/* ── Main content ── */}

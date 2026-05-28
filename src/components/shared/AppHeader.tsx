@@ -46,7 +46,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
     <div>
       {/* Notice ribbon — desktop only */}
       <div
-        className="hidden sm:flex items-center gap-2.5 px-12 py-2 text-white text-xs"
+        className="hidden lg:flex items-center gap-2.5 px-12 py-2 text-white text-xs"
         style={{ background: COLORS.ink, letterSpacing: '0.01em' }}
       >
         <span
@@ -61,7 +61,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
 
       {/* Main header */}
       <header
-        className="bg-surface border-b border-line px-4 sm:px-12 py-3 sm:py-[18px] flex items-center gap-6 sm:gap-10"
+        className="bg-surface border-b border-line px-4 lg:px-12 py-3 lg:py-[18px] flex items-center gap-6 lg:gap-10"
       >
         {/* Logo */}
         <Link to="/home" className="no-underline flex-shrink-0">
@@ -79,7 +79,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
         </Link>
 
         {/* Nav — desktop only */}
-        <nav className="hidden sm:flex gap-7 ml-6">
+        <nav className="hidden lg:flex gap-7 ml-6">
           {NAV_TABS.map(t => (
             <Link
               key={t.id}
@@ -106,7 +106,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
             className="flex items-center gap-2.5 py-1.5 pl-3.5 pr-1.5 border border-line rounded-full cursor-pointer"
           >
             {isAdmin && <Badge tone="brand">운영자</Badge>}
-            <span className="hidden sm:inline text-sm text-ink font-medium">{displayLabel}</span>
+            <span className="hidden lg:inline text-sm text-ink font-medium">{displayLabel}</span>
             <div
               className="w-7 h-7 rounded-full grid place-items-center text-xs font-bold text-white flex-shrink-0"
               style={{ background: COLORS.brand }}
@@ -119,7 +119,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
           {isAdmin && (
             <Link
               to="/admin"
-              className="hidden sm:inline text-xs font-semibold no-underline border rounded-2 px-3 py-1.5"
+              className="hidden lg:inline text-xs font-semibold no-underline border rounded-2 px-3 py-1.5"
               style={{ color: COLORS.brand, borderColor: COLORS.brand }}
             >
               관리자

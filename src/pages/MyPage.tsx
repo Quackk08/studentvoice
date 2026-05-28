@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
@@ -163,18 +163,18 @@ export default function MyPage() {
   return (
     <AppLayout active="home" isAdmin={profile?.is_admin}>
       {/* Profile section */}
-      <section className="px-4 sm:px-12 pt-10 sm:pt-14 pb-6 bg-bg">
+      <section className="px-4 lg:px-12 pt-10 lg:pt-14 pb-6 bg-bg">
         <div className="max-w-[1080px] mx-auto">
           <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.18em' }}>
             MY PAGE
           </div>
 
           {/* Profile card */}
-          <div className="bg-surface border border-line rounded-5 p-6 sm:p-8 flex flex-col sm:grid sm:gap-6 sm:items-center" style={{ gridTemplateColumns: '1fr auto' }}>
+          <div className="bg-surface border border-line rounded-5 p-6 sm:p-8 flex flex-col lg:grid lg:gap-6 lg:items-center" style={{ gridTemplateColumns: '1fr auto' }}>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5.5">
               {/* Avatar */}
               <div
-                className="w-16 sm:w-18 h-16 sm:h-18 rounded-full grid place-items-center text-white font-bold flex-shrink-0"
+                className="w-16 lg:w-18 h-16 lg:h-18 rounded-full grid place-items-center text-white font-bold flex-shrink-0"
                 style={{ background: COLORS.brand, fontSize: 22, letterSpacing: '-0.02em' }}
               >
                 {initials(profile?.name, profile?.email)}
@@ -259,7 +259,7 @@ export default function MyPage() {
             </div>
 
             {/* Stats + Sign out */}
-            <div className="flex items-center gap-6 sm:gap-8 mt-6 sm:mt-0 pt-6 sm:pt-0 border-t sm:border-t-0 sm:border-l border-line-soft sm:pl-8">
+            <div className="flex items-center gap-6 sm:gap-8 mt-6 lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-line-soft lg:pl-8">
               <Stat n={String(totalProposals)} l="작성한 안건" />
               <Stat n={String(selectedCount)} l="선정된 안건" tone="brand" />
               <div className="ml-2 flex flex-col gap-2 items-stretch">
@@ -274,7 +274,7 @@ export default function MyPage() {
       </section>
 
       {/* Main content */}
-      <section className="px-4 sm:px-12 pt-6 pb-20 bg-bg">
+      <section className="px-4 lg:px-12 pt-6 pb-20 bg-bg">
         <div className="max-w-[1080px] mx-auto grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-5">
           {/* My proposals */}
           <div className="bg-surface border border-line rounded-4 overflow-hidden">

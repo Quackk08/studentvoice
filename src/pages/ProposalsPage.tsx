@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
@@ -163,7 +163,7 @@ export default function ProposalsPage() {
   return (
     <AppLayout active="proposals" isAdmin={profile?.is_admin ?? false}>
       {/* ── Hero ── */}
-      <section className="px-4 sm:px-12 pt-8 sm:pt-12 pb-0 bg-bg">
+      <section className="px-4 lg:px-12 pt-8 lg:pt-12 pb-0 bg-bg">
         <div className="max-w-[1200px] mx-auto">
           <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.18em' }}>
             ALL PROPOSALS
@@ -186,7 +186,7 @@ export default function ProposalsPage() {
 
       {/* ── Filter / Search bar ── */}
       <section
-        className="px-4 sm:px-12 pt-6 pb-0 bg-bg sticky top-0 z-10 border-b border-line"
+        className="px-4 lg:px-12 pt-6 pb-0 bg-bg sticky top-0 z-10 border-b border-line"
       >
         <div className="max-w-[1200px] mx-auto">
           {/* Category tabs — scrollable on mobile */}
@@ -250,7 +250,7 @@ export default function ProposalsPage() {
           </div>
 
           {/* Mobile: sort row */}
-          <div className="flex sm:hidden items-center gap-1.5 py-2 overflow-x-auto">
+          <div className="flex lg:hidden items-center gap-1.5 py-2 overflow-x-auto">
             {SORT_OPTIONS.map(s => {
               const isActive = activeSort === s.id
               return (
@@ -286,7 +286,7 @@ export default function ProposalsPage() {
       </section>
 
       {/* ── Proposal grid ── */}
-      <section className="px-4 sm:px-12 py-7 sm:pb-20 bg-bg">
+      <section className="px-4 lg:px-12 py-7 lg:pb-20 bg-bg">
         <div className="max-w-[1200px] mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-4.5">
             {loading ? (
@@ -321,7 +321,7 @@ export default function ProposalsPage() {
       {/* FAB — desktop only */}
       <div
         onClick={() => navigate('/write')}
-        className="hidden sm:flex fixed right-9 bottom-9 z-50 items-center gap-3 rounded-full text-white text-base font-semibold cursor-pointer"
+        className="hidden lg:flex fixed right-9 bottom-9 z-50 items-center gap-3 rounded-full text-white text-base font-semibold cursor-pointer"
         style={{
           background: COLORS.ink,
           padding: '14px 22px 14px 18px',
