@@ -206,11 +206,15 @@ export function useProposal(id: string) {
 
   useEffect(() => { fetch() }, [fetch])
 
-  // Increment view count
+  // Increment view count — 30분 이내 같은 안건 재방문은 카운트 제외 (새로고침 어뷰징 방지)
   useEffect(() => {
-    if (isUuid(id)) {
-      supabase.rpc('increment_view_count', { proposal_id: id }).then(() => {})
-    }
+    if (!isUuid(id)) return
+    const COOLDOWN_MS = 30 * 60 * 1000 // 30분
+    const key = `viewed_${id}`
+    const last = Number(localStorage.getItem(key) ?? 0)
+    if (Date.now() - last < COOLDOWN_MS) return
+    localStorage.setItem(key, String(Date.now()))
+    supabase.rpc('increment_view_count', { proposal_id: id }).then(() => {})
   }, [id])
 
   return { data, loading, error, refetch: fetch }
