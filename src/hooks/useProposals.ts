@@ -457,42 +457,52 @@ export function useReportedProposals() {
   const [data, setData] = useState<{ proposal: Proposal; reportCount: number; reason: string }[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    supabase
+  const fetch = useCallback(async () => {
+    setLoading(true)
+    const { data: reports } = await supabase
       .from('reports')
       .select('proposal_id, reason, created_at')
       .order('created_at', { ascending: false })
-      .then(async ({ data: reports }) => {
-        if (!reports?.length) { setLoading(false); return }
 
-        // Group by proposal_id
-        const grouped: Record<string, { count: number; reason: string }> = {}
-        for (const r of reports) {
-          if (!grouped[r.proposal_id]) {
-            grouped[r.proposal_id] = { count: 0, reason: r.reason ?? '' }
-          }
-          grouped[r.proposal_id].count++
-        }
+    if (!reports?.length) { setData([]); setLoading(false); return }
 
-        // Fetch proposals for those ids
-        const ids = Object.keys(grouped)
-        const { data: proposals } = await supabase
-          .from('proposals')
-          .select('*, profiles(email)')
-          .in('id', ids)
+    const grouped: Record<string, { count: number; reason: string }> = {}
+    for (const r of reports) {
+      if (!grouped[r.proposal_id]) {
+        grouped[r.proposal_id] = { count: 0, reason: r.reason ?? '' }
+      }
+      grouped[r.proposal_id].count++
+    }
 
-        const result = (proposals ?? []).map(p => ({
-          proposal: p as Proposal,
-          reportCount: grouped[p.id]?.count ?? 0,
-          reason: grouped[p.id]?.reason ?? '',
-        })).sort((a, b) => b.reportCount - a.reportCount)
+    const ids = Object.keys(grouped)
+    const { data: proposals } = await supabase
+      .from('proposals')
+      .select('*, profiles(email)')
+      .in('id', ids)
 
-        setData(result)
-        setLoading(false)
-      })
+    const result = (proposals ?? []).map(p => ({
+      proposal: p as Proposal,
+      reportCount: grouped[p.id]?.count ?? 0,
+      reason: grouped[p.id]?.reason ?? '',
+    })).sort((a, b) => b.reportCount - a.reportCount)
+
+    setData(result)
+    setLoading(false)
   }, [])
 
-  return { data, loading }
+  useEffect(() => { fetch() }, [fetch])
+
+  return { data, loading, refetch: fetch }
+}
+
+// ── Admin: dismiss all reports for a proposal ────────────────
+export async function dismissReport(proposalId: string): Promise<{ error: string | null }> {
+  if (!isUuid(proposalId)) return { error: 'Invalid request.' }
+  const { error } = await supabase
+    .from('reports')
+    .delete()
+    .eq('proposal_id', proposalId)
+  return { error: error?.message ?? null }
 }
 
 // ── Save/unsave ──

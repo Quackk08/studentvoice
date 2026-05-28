@@ -3,7 +3,7 @@ import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
 import Btn from '../components/shared/Btn'
 import { useAuth } from '../contexts/AuthContext'
-import { useAdminQueue, useReportedProposals, adminUpdateStatus } from '../hooks/useProposals'
+import { useAdminQueue, useReportedProposals, adminUpdateStatus, dismissReport } from '../hooks/useProposals'
 import { COLORS } from '../tokens/tokens'
 import type { BadgeTone } from '../tokens/tokens'
 import type { Proposal } from '../types/database'
@@ -72,7 +72,7 @@ export default function AdminPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const { data: queue, loading: queueLoading, refetch: refetchQueue } = useAdminQueue()
-  const { data: reported, loading: repLoading } = useReportedProposals()
+  const { data: reported, loading: repLoading, refetch: refetchReported } = useReportedProposals()
 
   const handleStatusChange = async (proposalId: string, newStatus: string) => {
     await adminUpdateStatus(proposalId, newStatus)
@@ -315,6 +315,13 @@ export default function AdminPage() {
                       onClick={() => navigate(`/proposals/${r.id}`)}
                     >
                       원문 보기
+                    </Btn>
+                    <Btn
+                      variant="outline" size="sm"
+                      style={{ flex: 1, height: 30, fontSize: 11.5, color: COLORS.brand, borderColor: COLORS.brand }}
+                      onClick={async () => { await dismissReport(r.id); refetchReported() }}
+                    >
+                      신고 해제
                     </Btn>
                     <Btn
                       variant="primary" size="sm"
