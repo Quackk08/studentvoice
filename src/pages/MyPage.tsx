@@ -6,6 +6,7 @@ import ProgressBar from '../components/shared/ProgressBar'
 import Btn from '../components/shared/Btn'
 import { useAuth } from '../contexts/AuthContext'
 import { useMyProposals, useNotificationSettings } from '../hooks/useProposals'
+import { normalizeText, validatePassword } from '../lib/security'
 import { supabase } from '../lib/supabase'
 import { COLORS } from '../tokens/tokens'
 import type { BadgeTone } from '../tokens/tokens'
@@ -88,7 +89,9 @@ export default function MyPage() {
 
   const handleSaveProfile = async () => {
     if (!user) return
-    if (!editName.trim()) { setProfileStatus('이름을 입력해주세요.'); return }
+    // SECURITY FIX P2 (2025-05-28): editName.trim() → normalizeText() 로 제어문자 제거
+    const sanitizedName = normalizeText(editName, 40)
+    if (!sanitizedName) { setProfileStatus('이름을 입력해주세요.'); return }
     const classVal = Number(editClass)
     if (editClass !== '' && (classVal < 1 || classVal > 20)) {
       setProfileStatus('반은 1~20 사이로 입력해주세요.'); return
@@ -97,7 +100,7 @@ export default function MyPage() {
     setProfileStatus(null)
     try {
       const { error } = await supabase.from('profiles').update({
-        name: editName.trim(),
+        name: sanitizedName,
         ...(editGrade !== '' ? { grade: Number(editGrade) } : {}),
         ...(editClass !== '' ? { class: classVal } : {}),
       }).eq('id', user.id)
@@ -119,6 +122,9 @@ export default function MyPage() {
   const [confPw, setConfPw] = useState('')
   const [pwStatus, setPwStatus] = useState<string | null>(null)
   const [pwLoading, setPwLoading] = useState(false)
+  // SECURITY FIX P3 (2025-05-28): 비밀번호 변경 연속 시도 횟수 제한 (클라이언트)
+  const [pwFailCount, setPwFailCount] = useState(0)
+  const PW_MAX_ATTEMPTS = 5
 
   // Stats
   const totalProposals = myProposals.length
@@ -126,10 +132,14 @@ export default function MyPage() {
 
   // Change password
   const handleChangePw = async () => {
-    if (!newPw || newPw.length < 8) {
-      setPwStatus('새 비밀번호는 8자 이상이어야 합니다.')
+    // SECURITY FIX P3: 클라이언트 재시도 횟수 초과 차단
+    if (pwFailCount >= PW_MAX_ATTEMPTS) {
+      setPwStatus('시도 횟수를 초과했습니다. 페이지를 새로고침 후 다시 시도해주세요.')
       return
     }
+    // SECURITY FIX P2: 인라인 길이 체크 → security.ts의 validatePassword 통일 사용
+    const pwError = validatePassword(newPw)
+    if (pwError) { setPwStatus(pwError); return }
     if (newPw !== confPw) {
       setPwStatus('새 비밀번호와 확인이 일치하지 않습니다.')
       return
@@ -141,7 +151,8 @@ export default function MyPage() {
       email: user!.email!, password: curPw,
     })
     if (authErr) {
-      setPwStatus('현재 비밀번호가 올바르지 않습니다.')
+      setPwFailCount(c => c + 1)
+      setPwStatus(`현재 비밀번호가 올바르지 않습니다. (${pwFailCount + 1}/${PW_MAX_ATTEMPTS})`)
       setPwLoading(false)
       return
     }
@@ -150,6 +161,7 @@ export default function MyPage() {
       setPwStatus(error.message)
     } else {
       setPwStatus('✓ 비밀번호가 변경되었습니다.')
+      setPwFailCount(0)
       setCurPw(''); setNewPw(''); setConfPw('')
     }
     setPwLoading(false)

@@ -319,7 +319,12 @@ export default function AdminPage() {
                     <Btn
                       variant="outline" size="sm"
                       style={{ flex: 1, height: 30, fontSize: 11.5, color: COLORS.brand, borderColor: COLORS.brand }}
-                      onClick={async () => { await dismissReport(r.id); refetchReported() }}
+                      onClick={async () => {
+                        // SECURITY FIX P3 (2025-05-28): 실수 방지를 위한 확인 다이얼로그 추가
+                        if (!window.confirm('이 게시글의 모든 신고를 해제하시겠습니까?')) return
+                        await dismissReport(r.id)
+                        refetchReported()
+                      }}
                     >
                       신고 해제
                     </Btn>

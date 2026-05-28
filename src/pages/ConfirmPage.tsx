@@ -16,12 +16,17 @@ export default function ConfirmPage() {
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type') ?? 'signup'
 
+  // SECURITY FIX P2 (2025-05-28): token_hash 형식 검증 — 64자 이하 hex 문자열만 허용.
+  // 임의 문자열이 verifyOtp에 전달되는 것을 차단.
+  const TOKEN_HASH_RE = /^[0-9a-f]{1,128}$/i
+  const isValidToken = tokenHash !== null && TOKEN_HASH_RE.test(tokenHash)
+
   useEffect(() => {
-    if (!tokenHash) navigate('/login', { replace: true })
-  }, [tokenHash, navigate])
+    if (!isValidToken) navigate('/login', { replace: true })
+  }, [isValidToken, navigate])
 
   const handleConfirm = async () => {
-    if (!tokenHash) return
+    if (!isValidToken || !tokenHash) return
     setState('loading')
     try {
       const { error } = await supabase.auth.verifyOtp({
