@@ -42,87 +42,43 @@ export default function WritePage() {
 
   return (
     <AppLayout active="write" isAdmin={profile?.is_admin ?? false}>
-      <section style={{ padding: '56px 48px 80px', background: COLORS.bg }}>
-        <div style={{ maxWidth: 880, margin: '0 auto' }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.18em',
-              color: COLORS.brand,
-              marginBottom: 14,
-            }}
-          >
+      <section className="px-4 sm:px-12 pt-10 sm:pt-14 pb-20 bg-bg">
+        <div className="max-w-[880px] mx-auto">
+          <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.18em' }}>
             NEW PROPOSAL
           </div>
-          <h1
-            style={{
-              fontSize: 44,
-              fontWeight: 800,
-              margin: 0,
-              letterSpacing: '-0.032em',
-              lineHeight: 1.05,
-            }}
-          >
+          <h1 className="text-8xl sm:text-10xl font-extrabold m-0" style={{ letterSpacing: '-0.032em', lineHeight: 1.05 }}>
             학교에 제안할<br />의견을 작성해주세요.
           </h1>
 
           {/* Notice banner */}
           <div
-            style={{
-              marginTop: 28,
-              display: 'flex',
-              gap: 14,
-              padding: '16px 18px',
-              background: '#FFF8E8',
-              border: '1px solid #F2E6BD',
-              borderRadius: 12,
-            }}
+            className="mt-7 flex gap-3.5 rounded-3 p-4"
+            style={{ background: '#FFF8E8', border: '1px solid #F2E6BD' }}
           >
-            <div style={{ fontSize: 16, lineHeight: 1 }}>💡</div>
-            <div style={{ fontSize: 12.5, color: '#6B5A12', lineHeight: 1.65 }}>
-              <strong style={{ fontWeight: 700 }}>작성 전 확인해주세요.</strong>{' '}
+            <div className="text-xl leading-none">💡</div>
+            <div className="text-sm" style={{ color: '#6B5A12', lineHeight: 1.65 }}>
+              <strong className="font-bold">작성 전 확인해주세요.</strong>{' '}
               추천 30표 이상 모인 안건만 학생회로 전달됩니다. 비방·인신공격성 글은 게시 즉시
-              블라인드 처리되며, 안건이 <strong style={{ fontWeight: 700 }}>진행 중</strong>인 동안만 수정·삭제할 수 있습니다.
+              블라인드 처리되며, 안건이 <strong className="font-bold">진행 중</strong>인 동안만 수정·삭제할 수 있습니다.
             </div>
           </div>
 
           {/* Form card */}
-          <div
-            style={{
-              marginTop: 24,
-              background: COLORS.surface,
-              border: `1px solid ${COLORS.line}`,
-              borderRadius: 16,
-              padding: '36px 40px',
-            }}
-          >
+          <div className="mt-6 bg-surface border border-line rounded-4 px-6 sm:px-10 py-8 sm:py-9">
             {/* Category */}
-            <div style={{ marginBottom: 28 }}>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: COLORS.ink,
-                  marginBottom: 10,
-                }}
-              >
-                카테고리
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="mb-7">
+              <div className="text-xs font-semibold text-ink mb-2.5">카테고리</div>
+              <div className="flex flex-wrap gap-2">
                 {CATS.map((c, i) => (
                   <span
                     key={c}
                     onClick={() => setSelectedCat(i)}
+                    className="px-3.5 py-2 rounded-full text-sm font-medium cursor-pointer"
                     style={{
-                      padding: '8px 14px',
-                      borderRadius: 99,
-                      fontSize: 13,
-                      fontWeight: 500,
                       background: i === selectedCat ? COLORS.ink : COLORS.surface,
                       color: i === selectedCat ? '#fff' : COLORS.inkSub,
                       border: `1px solid ${i === selectedCat ? COLORS.ink : COLORS.line}`,
-                      cursor: 'pointer',
                     }}
                   >
                     {c}
@@ -132,113 +88,48 @@ export default function WritePage() {
             </div>
 
             {/* Title */}
-            <div style={{ marginBottom: 24 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: 10,
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>안건 제목</span>
-                <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
-                  {title.length} / 60자
-                </span>
+            <div className="mb-6">
+              <div className="flex justify-between mb-2.5">
+                <span className="text-xs font-semibold text-ink">안건 제목</span>
+                <span className="text-xs text-ink-muted">{title.length} / 60자</span>
               </div>
               <input
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 maxLength={60}
-                style={{
-                  width: '100%',
-                  height: 56,
-                  padding: '0 18px',
-                  border: `1px solid ${COLORS.line}`,
-                  borderRadius: 10,
-                  fontSize: 18,
-                  fontWeight: 600,
-                  fontFamily: 'inherit',
-                  letterSpacing: '-0.02em',
-                  color: COLORS.ink,
-                  background: COLORS.surface,
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                }}
+                className="w-full h-14 px-4.5 border border-line rounded-2.5 text-3xl font-semibold font-sans text-ink bg-surface outline-none box-border"
+                style={{ letterSpacing: '-0.02em' }}
               />
             </div>
 
             {/* Body */}
             <div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: 10,
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>본문</span>
-                <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
-                  최소 50자 이상 · {body.length} / 2000자
-                </span>
+              <div className="flex justify-between mb-2.5">
+                <span className="text-xs font-semibold text-ink">본문</span>
+                <span className="text-xs text-ink-muted">최소 50자 이상 · {body.length} / 2000자</span>
               </div>
-
               <textarea
                 value={body}
                 onChange={e => setBody(e.target.value)}
                 maxLength={2000}
-                style={{
-                  width: '100%',
-                  minHeight: 220,
-                  padding: '16px 18px',
-                  border: `1px solid ${COLORS.line}`,
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontFamily: 'inherit',
-                  color: COLORS.ink,
-                  lineHeight: 1.7,
-                  letterSpacing: '-0.01em',
-                  outline: 'none',
-                  background: COLORS.surface,
-                  resize: 'vertical',
-                  boxSizing: 'border-box',
-                }}
+                className="w-full px-4.5 py-4 border border-line rounded-2.5 text-base font-sans text-ink bg-surface outline-none box-border resize-y"
+                style={{ minHeight: 220, lineHeight: 1.7, letterSpacing: '-0.01em' }}
               />
             </div>
 
             {/* Bottom row */}
             <div
-              style={{
-                marginTop: 28,
-                paddingTop: 24,
-                borderTop: `1px solid ${COLORS.lineSoft}`,
-                display: 'flex',
-                alignItems: 'center',
-              }}
+              className="mt-7 pt-6 border-t border-line-soft flex flex-col sm:flex-row sm:items-center gap-4"
             >
               <label
                 onClick={() => setAnonymous(!anonymous)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 12.5,
-                  color: COLORS.inkSub,
-                  cursor: 'pointer',
-                }}
+                className="flex items-center gap-2 text-sm text-ink-sub cursor-pointer"
               >
                 <span
+                  className="w-4.5 h-4.5 rounded-1.25 grid place-items-center text-white text-xs font-bold flex-shrink-0"
                   style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 5,
                     background: anonymous ? COLORS.brand : COLORS.surface,
                     border: `1px solid ${anonymous ? COLORS.brand : COLORS.line}`,
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    flexShrink: 0,
                   }}
                 >
                   {anonymous ? '✓' : ''}
@@ -247,11 +138,9 @@ export default function WritePage() {
               </label>
 
               {errorMsg && (
-                <div style={{ fontSize: 12, color: COLORS.warn, marginRight: 'auto', maxWidth: 320 }}>
-                  {errorMsg}
-                </div>
+                <div className="text-xs text-warn sm:mr-auto sm:max-w-xs">{errorMsg}</div>
               )}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+              <div className="sm:ml-auto flex gap-2.5">
                 <Btn variant="outline" size="md" onClick={() => navigate('/home')}>
                   취소
                 </Btn>

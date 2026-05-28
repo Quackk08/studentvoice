@@ -30,12 +30,7 @@ function initials(name: string | null | undefined, email: string | null | undefi
 // ── Sub-components ──
 function TagPill({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      style={{
-        fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
-        background: COLORS.surfaceAlt, color: COLORS.inkSub, border: `1px solid ${COLORS.line}`,
-      }}
-    >
+    <span className="text-xs font-semibold px-2 py-0.75 rounded-1 bg-surface-alt text-ink-sub border border-line">
       {children}
     </span>
   )
@@ -45,15 +40,16 @@ function Stat({ n, l, tone }: { n: string; l: string; tone?: 'brand' }) {
   return (
     <div>
       <div
+        className="text-6xl font-bold leading-none"
         style={{
-          fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1,
+          letterSpacing: '-0.03em',
           color: tone === 'brand' ? COLORS.brand : COLORS.ink,
           fontFeatureSettings: '"tnum"',
         }}
       >
         {n}
       </div>
-      <div style={{ fontSize: 11, color: COLORS.inkSub, marginTop: 6 }}>{l}</div>
+      <div className="text-xs text-ink-sub mt-1.5">{l}</div>
     </div>
   )
 }
@@ -124,7 +120,6 @@ export default function MyPage() {
   const totalProposals = myProposals.length
   const selectedCount = myProposals.filter(p => p.status !== 'active' && p.status !== 'blinded').length
 
-  // Change password
   const handleChangePw = async () => {
     if (!newPw || newPw.length < 8) {
       setPwStatus('새 비밀번호는 8자 이상이어야 합니다.')
@@ -136,7 +131,6 @@ export default function MyPage() {
     }
     setPwLoading(true)
     setPwStatus(null)
-    // Re-sign in to verify current password
     const { error: authErr } = await supabase.auth.signInWithPassword({
       email: user!.email!, password: curPw,
     })
@@ -155,7 +149,6 @@ export default function MyPage() {
     setPwLoading(false)
   }
 
-  // Handle sign out
   const handleSignOut = async () => {
     await signOut()
     navigate('/login')
@@ -170,72 +163,52 @@ export default function MyPage() {
   return (
     <AppLayout active="home" isAdmin={profile?.is_admin}>
       {/* Profile section */}
-      <section style={{ padding: '56px 48px 24px', background: COLORS.bg }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-          <div
-            style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-              color: COLORS.brand, marginBottom: 14,
-            }}
-          >
+      <section className="px-4 sm:px-12 pt-10 sm:pt-14 pb-6 bg-bg">
+        <div className="max-w-[1080px] mx-auto">
+          <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.18em' }}>
             MY PAGE
           </div>
 
           {/* Profile card */}
-          <div
-            style={{
-              background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-              borderRadius: 20, padding: 32,
-              display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+          <div className="bg-surface border border-line rounded-5 p-6 sm:p-8 flex flex-col sm:grid sm:gap-6 sm:items-center" style={{ gridTemplateColumns: '1fr auto' }}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5.5">
               {/* Avatar */}
               <div
-                style={{
-                  width: 72, height: 72, borderRadius: 99, background: COLORS.brand,
-                  color: '#fff', display: 'grid', placeItems: 'center',
-                  fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', flexShrink: 0,
-                }}
+                className="w-16 sm:w-18 h-16 sm:h-18 rounded-full grid place-items-center text-white font-bold flex-shrink-0"
+                style={{ background: COLORS.brand, fontSize: 22, letterSpacing: '-0.02em' }}
               >
                 {initials(profile?.name, profile?.email)}
               </div>
 
               {profileEditing ? (
                 /* ── Edit form ── */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                <div className="flex flex-col gap-2.5 flex-1 w-full">
                   {/* Name */}
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkSub, marginBottom: 4 }}>이름</div>
+                    <div className="text-xs font-semibold text-ink-sub mb-1">이름</div>
                     <input
                       type="text"
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
                       placeholder="이름"
                       maxLength={40}
-                      style={{
-                        width: '100%', maxWidth: 220, height: 36, border: `1px solid ${COLORS.line}`,
-                        borderRadius: 8, padding: '0 12px', fontSize: 14, color: COLORS.ink,
-                        fontFamily: 'inherit', outline: 'none', background: COLORS.surface,
-                        boxSizing: 'border-box',
-                      }}
+                      className="h-9 border border-line rounded-2 px-3 text-base text-ink font-sans outline-none bg-surface box-border w-full max-w-[220px]"
                     />
                   </div>
                   {/* Grade + Class */}
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                  <div className="flex gap-2.5 items-end">
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkSub, marginBottom: 4 }}>학년</div>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div className="text-xs font-semibold text-ink-sub mb-1">학년</div>
+                      <div className="flex gap-1.5">
                         {[1, 2, 3].map(g => (
                           <button
                             key={g}
                             onClick={() => setEditGrade(editGrade === g ? '' : g)}
+                            className="w-9 h-9 rounded-2 text-sm font-semibold cursor-pointer font-sans"
                             style={{
-                              width: 36, height: 36, borderRadius: 8, fontSize: 13, fontWeight: 600,
                               border: `1px solid ${editGrade === g ? COLORS.brand : COLORS.line}`,
                               background: editGrade === g ? COLORS.brand : COLORS.surface,
                               color: editGrade === g ? '#fff' : COLORS.ink,
-                              cursor: 'pointer', fontFamily: 'inherit',
                             }}
                           >
                             {g}
@@ -244,30 +217,23 @@ export default function MyPage() {
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkSub, marginBottom: 4 }}>반</div>
+                      <div className="text-xs font-semibold text-ink-sub mb-1">반</div>
                       <input
                         type="number"
                         value={editClass}
                         onChange={e => setEditClass(e.target.value === '' ? '' : Number(e.target.value))}
                         placeholder="반"
                         min={1} max={20}
-                        style={{
-                          width: 64, height: 36, border: `1px solid ${COLORS.line}`,
-                          borderRadius: 8, padding: '0 10px', fontSize: 14, color: COLORS.ink,
-                          fontFamily: 'inherit', outline: 'none', background: COLORS.surface,
-                          boxSizing: 'border-box',
-                        }}
+                        className="w-16 h-9 border border-line rounded-2 px-2.5 text-base text-ink font-sans outline-none bg-surface box-border"
                       />
                     </div>
                   </div>
-                  {/* Status */}
                   {profileStatus && (
-                    <div style={{ fontSize: 12, color: profileStatus.startsWith('✓') ? COLORS.brand : COLORS.warn }}>
+                    <div className={`text-xs ${profileStatus.startsWith('✓') ? 'text-brand' : 'text-warn'}`}>
                       {profileStatus}
                     </div>
                   )}
-                  {/* Save / Cancel */}
-                  <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                  <div className="flex gap-2 mt-0.5">
                     <Btn variant="primary" size="sm" onClick={handleSaveProfile} disabled={profileSaving}>
                       {profileSaving ? '저장 중…' : '저장'}
                     </Btn>
@@ -279,28 +245,24 @@ export default function MyPage() {
               ) : (
                 /* ── Display mode ── */
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
-                      {displayName}
-                    </span>
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    <span className="text-4xl font-bold" style={{ letterSpacing: '-0.02em' }}>{displayName}</span>
                     {gradeClass && <Badge>{gradeClass}</Badge>}
                   </div>
-                  <div style={{ fontSize: 13, color: COLORS.inkSub }}>{displayEmail}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
-                    재학생 계정 · {profile?.is_admin ? '운영자' : '일반 학생'}
-                  </div>
+                  <div className="text-sm text-ink-sub">{displayEmail}</div>
+                  <div className="text-xs text-ink-muted mt-1">재학생 계정 · {profile?.is_admin ? '운영자' : '일반 학생'}</div>
                   {profileStatus && (
-                    <div style={{ fontSize: 12, color: COLORS.brand, marginTop: 6 }}>{profileStatus}</div>
+                    <div className="text-xs text-brand mt-1.5">{profileStatus}</div>
                   )}
                 </div>
               )}
             </div>
 
             {/* Stats + Sign out */}
-            <div style={{ display: 'flex', gap: 32, paddingLeft: 32, borderLeft: `1px solid ${COLORS.lineSoft}`, alignItems: 'flex-start' }}>
+            <div className="flex items-center gap-6 sm:gap-8 mt-6 sm:mt-0 pt-6 sm:pt-0 border-t sm:border-t-0 sm:border-l border-line-soft sm:pl-8">
               <Stat n={String(totalProposals)} l="작성한 안건" />
               <Stat n={String(selectedCount)} l="선정된 안건" tone="brand" />
-              <div style={{ marginLeft: 8, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+              <div className="ml-2 flex flex-col gap-2 items-stretch">
                 {!profileEditing && (
                   <Btn variant="outline" size="sm" onClick={handleStartEdit}>정보 수정</Btn>
                 )}
@@ -312,45 +274,26 @@ export default function MyPage() {
       </section>
 
       {/* Main content */}
-      <section style={{ padding: '24px 48px 80px', background: COLORS.bg }}>
-        <div
-          style={{
-            maxWidth: 1080, margin: '0 auto',
-            display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20,
-          }}
-        >
+      <section className="px-4 sm:px-12 pt-6 pb-20 bg-bg">
+        <div className="max-w-[1080px] mx-auto grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-5">
           {/* My proposals */}
-          <div
-            style={{
-              background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-              borderRadius: 16, overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                padding: '20px 24px', borderBottom: `1px solid ${COLORS.lineSoft}`,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}
-            >
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
+          <div className="bg-surface border border-line rounded-4 overflow-hidden">
+            <div className="px-6 py-5 border-b border-line-soft flex justify-between items-center">
+              <h3 className="text-xl font-bold m-0" style={{ letterSpacing: '-0.02em' }}>
                 내가 작성한 안건
-                <span style={{ marginLeft: 8, fontSize: 13, color: COLORS.inkMuted, fontWeight: 500 }}>
+                <span className="ml-2 text-sm text-ink-muted font-medium">
                   · {loading ? '…' : `${totalProposals}건`}
                 </span>
               </h3>
-              <span style={{ fontSize: 12, color: COLORS.inkSub }}>최신순 ↓</span>
+              <span className="text-xs text-ink-sub">최신순 ↓</span>
             </div>
 
             {loading ? (
-              <div style={{ padding: '40px 24px', textAlign: 'center', color: COLORS.inkMuted, fontSize: 13 }}>
-                불러오는 중…
-              </div>
+              <div className="px-6 py-10 text-center text-ink-muted text-sm">불러오는 중…</div>
             ) : myProposals.length === 0 ? (
-              <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-                <div style={{ fontSize: 24, marginBottom: 10 }}>✏️</div>
-                <div style={{ fontSize: 13, color: COLORS.inkSub, marginBottom: 16 }}>
-                  아직 작성한 안건이 없습니다
-                </div>
+              <div className="px-6 py-12 text-center">
+                <div className="text-3xl mb-2.5">✏️</div>
+                <div className="text-sm text-ink-sub mb-4">아직 작성한 안건이 없습니다</div>
                 <Btn variant="primary" size="sm" onClick={() => navigate('/write')}>
                   첫 번째 안건 작성하기
                 </Btn>
@@ -363,42 +306,34 @@ export default function MyPage() {
                   <div
                     key={m.id}
                     onClick={() => navigate(`/proposals/${m.id}`)}
+                    className="px-6 py-4.5 grid items-center gap-4 cursor-pointer"
                     style={{
-                      padding: '18px 24px',
+                      gridTemplateColumns: '1fr auto',
                       borderTop: i ? `1px solid ${COLORS.lineSoft}` : 'none',
-                      display: 'grid', gridTemplateColumns: '1fr auto', gap: 16,
-                      alignItems: 'center', cursor: 'pointer',
                     }}
                   >
                     <div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                      <div className="flex gap-2 items-center mb-1.5">
                         <TagPill>{m.category}</TagPill>
                         <Badge tone={tone}>{stateLabel}</Badge>
                       </div>
-                      <div
-                        style={{
-                          fontSize: 14, fontWeight: 600, color: COLORS.ink,
-                          letterSpacing: '-0.015em', marginBottom: 8,
-                        }}
-                      >
+                      <div className="text-base font-semibold text-ink mb-2" style={{ letterSpacing: '-0.015em' }}>
                         {m.title}
                       </div>
                       {isActive ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ flex: 1, maxWidth: 200 }}>
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex-1 max-w-[200px]">
                             <ProgressBar value={m.vote_count} max={30} height={5} />
                           </div>
-                          <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFeatureSettings: '"tnum"' }}>
+                          <span className="text-xs text-ink-muted" style={{ fontFeatureSettings: '"tnum"' }}>
                             {m.vote_count}/30표
                           </span>
                         </div>
                       ) : (
-                        <span style={{ fontSize: 11, color: COLORS.brand, fontWeight: 600 }}>
-                          ✓ 선정 · {m.vote_count}표
-                        </span>
+                        <span className="text-xs text-brand font-semibold">✓ 선정 · {m.vote_count}표</span>
                       )}
                     </div>
-                    <span style={{ color: COLORS.inkMuted, fontSize: 16 }}>→</span>
+                    <span className="text-ink-muted text-xl">→</span>
                   </div>
                 )
               })
@@ -406,55 +341,35 @@ export default function MyPage() {
           </div>
 
           {/* Right column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="flex flex-col gap-5">
             {/* Password change */}
-            <div
-              style={{
-                background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-                borderRadius: 16, padding: 24,
-              }}
-            >
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
-                비밀번호 변경
-              </h3>
-              <p style={{ fontSize: 12, color: COLORS.inkSub, margin: '6px 0 18px', lineHeight: 1.55 }}>
+            <div className="bg-surface border border-line rounded-4 p-6">
+              <h3 className="text-xl font-bold m-0" style={{ letterSpacing: '-0.02em' }}>비밀번호 변경</h3>
+              <p className="text-xs text-ink-sub mt-1.5 mb-4.5" style={{ lineHeight: 1.55 }}>
                 현재 비밀번호를 입력한 후 새 비밀번호로 변경할 수 있습니다.
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="flex flex-col gap-3">
                 {[
                   { label: '현재 비밀번호', value: curPw, onChange: setCurPw, placeholder: '현재 비밀번호' },
                   { label: '새 비밀번호', value: newPw, onChange: setNewPw, placeholder: '영문+숫자 8자 이상' },
                   { label: '새 비밀번호 확인', value: confPw, onChange: setConfPw, placeholder: '다시 한 번 입력' },
                 ].map(({ label, value, onChange, placeholder }) => (
                   <div key={label}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>{label}</div>
-                    <div
-                      style={{
-                        display: 'flex', alignItems: 'center', border: `1px solid ${COLORS.line}`,
-                        borderRadius: 10, background: COLORS.surface, padding: '0 14px', height: 48,
-                      }}
-                    >
+                    <div className="text-xs font-semibold text-ink mb-2">{label}</div>
+                    <div className="flex items-center border border-line rounded-2.5 bg-surface px-3.5 h-12">
                       <input
                         type="password"
                         placeholder={placeholder}
                         value={value}
                         onChange={e => onChange(e.target.value)}
-                        style={{
-                          flex: 1, border: 'none', outline: 'none', fontSize: 14,
-                          color: COLORS.ink, fontFamily: 'inherit', background: 'transparent',
-                        }}
+                        className="flex-1 border-none outline-none text-base text-ink font-sans bg-transparent"
                       />
                     </div>
                   </div>
                 ))}
               </div>
               {pwStatus && (
-                <div
-                  style={{
-                    marginTop: 10, fontSize: 12,
-                    color: pwStatus.startsWith('✓') ? COLORS.brand : COLORS.warn,
-                  }}
-                >
+                <div className={`mt-2.5 text-xs ${pwStatus.startsWith('✓') ? 'text-brand' : 'text-warn'}`}>
                   {pwStatus}
                 </div>
               )}
@@ -469,15 +384,8 @@ export default function MyPage() {
             </div>
 
             {/* Notifications */}
-            <div
-              style={{
-                background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-                borderRadius: 16, padding: 24,
-              }}
-            >
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: '-0.02em', marginBottom: 14 }}>
-                알림 설정
-              </h3>
+            <div className="bg-surface border border-line rounded-4 p-6">
+              <h3 className="text-xl font-bold m-0 mb-3.5" style={{ letterSpacing: '-0.02em' }}>알림 설정</h3>
               {(
                 [
                   { key: 'on_selected', label: '내 안건이 선정되었을 때' },
@@ -489,29 +397,17 @@ export default function MyPage() {
                 return (
                   <div
                     key={key}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '10px 0', borderTop: `1px solid ${COLORS.lineSoft}`,
-                    }}
+                    className="flex justify-between items-center py-2.5 border-t border-line-soft"
                   >
-                    <span style={{ fontSize: 13, color: COLORS.ink }}>{label}</span>
+                    <span className="text-sm text-ink">{label}</span>
                     <div
                       onClick={() => updateSetting(key, !on)}
-                      style={{
-                        width: 34, height: 20, borderRadius: 99,
-                        background: on ? COLORS.brand : COLORS.line,
-                        position: 'relative', cursor: 'pointer',
-                        transition: 'background .2s', flexShrink: 0,
-                      }}
+                      className="w-8.5 h-5 rounded-full relative cursor-pointer transition-colors flex-shrink-0"
+                      style={{ background: on ? COLORS.brand : COLORS.line }}
                     >
                       <span
-                        style={{
-                          position: 'absolute', top: 2,
-                          left: on ? 16 : 2,
-                          width: 16, height: 16, borderRadius: 99,
-                          background: '#fff', transition: 'left .2s',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                        }}
+                        className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                        style={{ left: on ? 16 : 2, boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }}
                       />
                     </div>
                   </div>

@@ -34,7 +34,6 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
     ? '학생회 전달 현황을 불러오는 중입니다.'
     : `${noticeMonth}월 학생회 정기회의에서 선정된 안건 ${noticeStats.deliveredThisMonth.toLocaleString('ko-KR')}건이 학교 측에 전달되었습니다.`
 
-  // 프로필 표시용 값
   const displayLabel = profile
     ? (profile.grade && profile.class ? `${profile.grade}학년 ${profile.class}반` : profile.name ?? profile.email?.split('@')[0] ?? '내 계정')
     : '내 계정'
@@ -45,77 +44,51 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
 
   return (
     <div>
-      {/* Notice ribbon */}
+      {/* Notice ribbon — desktop only */}
       <div
-        style={{
-          background: COLORS.ink,
-          color: '#fff',
-          fontSize: 12,
-          padding: '8px 48px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          letterSpacing: '0.01em',
-        }}
+        className="hidden sm:flex items-center gap-2.5 px-12 py-2 text-white text-xs"
+        style={{ background: COLORS.ink, letterSpacing: '0.01em' }}
       >
         <span
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            padding: '2px 7px',
-            borderRadius: 3,
-            background: 'rgba(255,255,255,0.14)',
-            letterSpacing: '0.08em',
-          }}
+          className="text-2xs font-bold px-1.5 py-0.5 rounded-0.25"
+          style={{ background: 'rgba(255,255,255,0.14)', letterSpacing: '0.08em' }}
         >
           NOTICE
         </span>
-        <span style={{ opacity: 0.85 }}>
-          {noticeText}
-        </span>
-        <span style={{ marginLeft: 'auto', opacity: 0.55, fontSize: 11 }}>{noticeDate}</span>
+        <span style={{ opacity: 0.85 }}>{noticeText}</span>
+        <span className="ml-auto text-xs" style={{ opacity: 0.55 }}>{noticeDate}</span>
       </div>
 
       {/* Main header */}
       <header
-        style={{
-          background: COLORS.surface,
-          borderBottom: `1px solid ${COLORS.line}`,
-          padding: '18px 48px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 40,
-        }}
+        className="bg-surface border-b border-line px-4 sm:px-12 py-3 sm:py-[18px] flex items-center gap-6 sm:gap-10"
       >
         {/* Logo */}
-        <Link to="/home" style={{ textDecoration: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Link to="/home" className="no-underline flex-shrink-0">
+          <div className="flex items-center gap-2.5">
             <MicMark size={26} color={COLORS.ink} />
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-              <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.ink, letterSpacing: '-0.01em' }}>
+            <div className="flex flex-col leading-none">
+              <span className="font-bold text-lg text-ink" style={{ letterSpacing: '-0.01em' }}>
                 학생의 목소리
               </span>
-              <span style={{ fontSize: 11, color: COLORS.inkSub, marginTop: 2, letterSpacing: '0.02em' }}>
+              <span className="text-xs text-ink-sub mt-0.5" style={{ letterSpacing: '0.02em' }}>
                 대전대신고등학교
               </span>
             </div>
           </div>
         </Link>
 
-        {/* Nav */}
-        <nav style={{ display: 'flex', gap: 28, marginLeft: 24 }}>
+        {/* Nav — desktop only */}
+        <nav className="hidden sm:flex gap-7 ml-6">
           {NAV_TABS.map(t => (
             <Link
               key={t.id}
               to={t.to}
+              className="no-underline text-base pb-1"
               style={{
-                fontSize: 14,
                 fontWeight: active === t.id ? 600 : 500,
                 color: active === t.id ? COLORS.ink : COLORS.inkSub,
-                position: 'relative',
-                paddingBottom: 4,
                 borderBottom: active === t.id ? `2px solid ${COLORS.brand}` : '2px solid transparent',
-                textDecoration: 'none',
               }}
             >
               {t.label}
@@ -124,56 +97,30 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
         </nav>
 
         {/* Right side */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div className="ml-auto flex items-center gap-3 sm:gap-3.5">
           <NotificationBell userId={profile?.id} />
 
-          {/* Profile pill — real data */}
+          {/* Profile pill */}
           <div
             onClick={() => navigate('/mypage')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '6px 6px 6px 14px',
-              border: `1px solid ${COLORS.line}`,
-              borderRadius: 99,
-              cursor: 'pointer',
-            }}
+            className="flex items-center gap-2.5 py-1.5 pl-3.5 pr-1.5 border border-line rounded-full cursor-pointer"
           >
             {isAdmin && <Badge tone="brand">운영자</Badge>}
-            <span style={{ fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
-              {displayLabel}
-            </span>
+            <span className="hidden sm:inline text-sm text-ink font-medium">{displayLabel}</span>
             <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 99,
-                background: COLORS.brand,
-                color: '#fff',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 11,
-                fontWeight: 700,
-              }}
+              className="w-7 h-7 rounded-full grid place-items-center text-xs font-bold text-white flex-shrink-0"
+              style={{ background: COLORS.brand }}
             >
               {avatarText}
             </div>
           </div>
 
-          {/* Admin link */}
+          {/* Admin link — desktop only */}
           {isAdmin && (
             <Link
               to="/admin"
-              style={{
-                fontSize: 12,
-                color: COLORS.brand,
-                fontWeight: 600,
-                textDecoration: 'none',
-                border: `1px solid ${COLORS.brand}`,
-                borderRadius: 8,
-                padding: '6px 12px',
-              }}
+              className="hidden sm:inline text-xs font-semibold no-underline border rounded-2 px-3 py-1.5"
+              style={{ color: COLORS.brand, borderColor: COLORS.brand }}
             >
               관리자
             </Link>

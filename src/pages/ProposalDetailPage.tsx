@@ -19,17 +19,7 @@ const CATS: ProposalCategory[] = ['#시설', '#급식', '#교칙', '#학사', '#
 
 function TagPill({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        padding: '3px 8px',
-        borderRadius: 4,
-        background: COLORS.surfaceAlt,
-        color: COLORS.inkSub,
-        border: `1px solid ${COLORS.line}`,
-      }}
-    >
+    <span className="text-xs font-semibold px-2 py-0.75 rounded-1 bg-surface-alt text-ink-sub border border-line">
       {children}
     </span>
   )
@@ -42,36 +32,19 @@ function relativeTime(dateStr: string) {
   return `${Math.floor(diff / 86400)}일 전`
 }
 
-// ── Simple overlay modal ──────────────────────────────────────
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string
-  onClose: () => void
-  children: React.ReactNode
-}) {
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 999,
-        background: 'rgba(0,0,0,0.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}
+      className="fixed inset-0 z-[999] flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={onClose}
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{
-          background: COLORS.surface, borderRadius: 20,
-          padding: 32, width: 480, maxWidth: '90vw',
-          boxShadow: '0 20px 60px -10px rgba(0,0,0,0.3)',
-        }}
+        className="bg-surface rounded-5 p-8 w-full max-w-[480px] mx-4"
+        style={{ boxShadow: '0 20px 60px -10px rgba(0,0,0,0.3)' }}
       >
-        <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 20 }}>
-          {title}
-        </div>
+        <div className="text-2xl font-bold mb-5" style={{ letterSpacing: '-0.02em' }}>{title}</div>
         {children}
       </div>
     </div>
@@ -289,57 +262,50 @@ export default function ProposalDetailPage() {
       }
       isAdmin={IS_ADMIN}
     >
-      <section style={{ padding: '40px 48px 80px', background: COLORS.bg }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 32 }}>
+      <section className="px-4 sm:px-12 pt-8 sm:pt-10 pb-20 bg-bg">
+        <div className="max-w-[1080px] mx-auto flex flex-col lg:grid lg:gap-8" style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}>
 
           {/* ── Main content ── */}
           <div>
-            {loading && <div style={{ fontSize: 14, color: COLORS.inkMuted }}>불러오는 중…</div>}
+            {loading && <div className="text-base text-ink-muted">불러오는 중…</div>}
 
-            {/* Breadcrumb — 안건 상태·추천 수에 따라 상위 경로 결정 */}
+            {/* Breadcrumb */}
             {(() => {
               const isActive  = proposal?.status === 'active'
               const isPopular = isActive && (proposal?.vote_count ?? 0) >= 20
-
-              // 상위 경로 결정
               const [parentLabel, parentPath] =
                 isPopular  ? ['인기 이슈',       '/home']     :
                 isActive   ? ['전체 안건',        '/proposals']:
                              ['답변 · 아카이브', '/archive']
-
               return (
-                <div style={{ fontSize: 12, color: COLORS.inkSub, marginBottom: 16 }}>
-                  {/* 최상위: 인기이슈 출발이면 홈, 나머지는 바로 상위 */}
+                <div className="text-xs text-ink-sub mb-4">
                   {isPopular ? (
                     <>
-                      <span onClick={() => navigate('/home')} style={{ cursor: 'pointer' }}>홈</span>
-                      <span style={{ margin: '0 6px', color: COLORS.inkMuted }}>/</span>
-                      <span onClick={() => navigate('/home')} style={{ cursor: 'pointer' }}>인기 이슈</span>
+                      <span onClick={() => navigate('/home')} className="cursor-pointer">홈</span>
+                      <span className="mx-1.5 text-ink-muted">/</span>
+                      <span onClick={() => navigate('/home')} className="cursor-pointer">인기 이슈</span>
                     </>
                   ) : (
-                    <span onClick={() => navigate(parentPath)} style={{ cursor: 'pointer' }}>
-                      {parentLabel}
-                    </span>
+                    <span onClick={() => navigate(parentPath)} className="cursor-pointer">{parentLabel}</span>
                   )}
-                  <span style={{ margin: '0 6px', color: COLORS.inkMuted }}>/</span>
-                  <span style={{ color: COLORS.ink, fontWeight: 500 }}>안건 상세</span>
+                  <span className="mx-1.5 text-ink-muted">/</span>
+                  <span className="text-ink font-medium">안건 상세</span>
                 </div>
               )
             })()}
 
-            {/* Category selector (edit mode) or tags (read mode) */}
+            {/* Category selector or tags */}
             {editMode ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              <div className="flex flex-wrap gap-2 mb-4">
                 {CATS.map(c => (
                   <span
                     key={c}
                     onClick={() => setEditCat(c)}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer"
                     style={{
-                      padding: '6px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600,
                       background: c === editCat ? COLORS.ink : COLORS.surface,
                       color: c === editCat ? '#fff' : COLORS.inkSub,
                       border: `1px solid ${c === editCat ? COLORS.ink : COLORS.line}`,
-                      cursor: 'pointer',
                     }}
                   >
                     {c}
@@ -347,7 +313,7 @@ export default function ProposalDetailPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <div className="flex items-center gap-2 mb-3.5">
                 <TagPill>{category}</TagPill>
                 {voteCount >= 20 && proposal?.status === 'active' && (
                   <Badge tone="fire">🔥 인기 급상승</Badge>
@@ -361,7 +327,7 @@ export default function ProposalDetailPage() {
                     {STATUS_LABELS[proposal.status] ?? proposal.status}
                   </Badge>
                 )}
-                <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                <span className="text-xs text-ink-muted">
                   {new Date(createdAt).toLocaleDateString('ko-KR')} · {relativeTime(createdAt)}
                 </span>
               </div>
@@ -373,15 +339,17 @@ export default function ProposalDetailPage() {
                 value={editTitle}
                 onChange={e => setEditTitle(e.target.value)}
                 maxLength={60}
+                className="w-full font-extrabold font-sans text-ink bg-surface outline-none box-border mb-4 rounded-2.5 px-4 py-2.5"
                 style={{
-                  width: '100%', fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em',
-                  border: `1.5px solid ${COLORS.brand}`, borderRadius: 10,
-                  padding: '10px 16px', fontFamily: 'inherit', color: COLORS.ink,
-                  background: COLORS.surface, outline: 'none', boxSizing: 'border-box', marginBottom: 16,
+                  fontSize: 30, letterSpacing: '-0.03em',
+                  border: `1.5px solid ${COLORS.brand}`,
                 }}
               />
             ) : (
-              <h1 style={{ fontSize: 36, fontWeight: 800, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.2, color: COLORS.ink, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              <h1
+                className="text-7xl sm:text-8xl font-extrabold m-0 text-ink"
+                style={{ letterSpacing: '-0.03em', lineHeight: 1.2, wordBreak: 'break-word', overflowWrap: 'break-word' }}
+              >
                 {title}
               </h1>
             )}
@@ -389,28 +357,23 @@ export default function ProposalDetailPage() {
             {/* Author meta */}
             {!editMode && (
               <div
-                style={{
-                  marginTop: 22, padding: '14px 0',
-                  borderTop: `1px solid ${COLORS.lineSoft}`, borderBottom: `1px solid ${COLORS.lineSoft}`,
-                  display: 'flex', alignItems: 'center', gap: 16, fontSize: 12.5, color: COLORS.inkSub,
-                }}
+                className="mt-5 py-3.5 border-t border-b border-line-soft flex items-center gap-4 text-ink-sub"
+                style={{ fontSize: 12.5 }}
               >
-                <div style={{ width: 32, height: 32, borderRadius: 99, background: COLORS.surfaceAlt, display: 'grid', placeItems: 'center', fontSize: 13 }}>
-                  🎭
-                </div>
+                <div className="w-8 h-8 rounded-full bg-surface-alt grid place-items-center text-sm">🎭</div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                  <div className="text-sm font-semibold text-ink">
                     {proposal?.is_anonymous
                       ? `익명의 대신인 · ${proposal.profiles?.grade ?? '?'}학년`
                       : (proposal?.profiles?.grade ? `${proposal.profiles.grade}학년` : '작성자')}
                   </div>
                   {IS_ADMIN && proposal && (
-                    <div style={{ fontSize: 11, color: COLORS.warn, marginTop: 3, fontWeight: 500 }}>
+                    <div className="text-xs text-warn mt-0.75 font-medium">
                       ⓘ 발의자: {proposal.profiles?.email ?? '(이메일 없음)'} (운영자에게만 표시)
                     </div>
                   )}
                 </div>
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: 18, alignItems: 'center' }}>
+                <div className="ml-auto flex gap-4.5 items-center text-xs">
                   <span>조회 {viewCount}</span>
                   <span>💬 {commentCount}</span>
                 </div>
@@ -425,17 +388,11 @@ export default function ProposalDetailPage() {
                   onChange={e => setEditBody(e.target.value)}
                   maxLength={2000}
                   rows={12}
-                  style={{
-                    width: '100%', fontSize: 14, color: COLORS.ink, lineHeight: 1.85,
-                    border: `1.5px solid ${COLORS.brand}`, borderRadius: 10,
-                    padding: '14px 16px', fontFamily: 'inherit', background: COLORS.surface,
-                    outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginTop: 16,
-                  }}
+                  className="w-full text-base text-ink font-sans bg-surface outline-none resize-y box-border mt-4 rounded-2.5 px-4 py-3.5"
+                  style={{ lineHeight: 1.85, border: `1.5px solid ${COLORS.brand}` }}
                 />
-                {editError && (
-                  <div style={{ fontSize: 12, color: COLORS.warn, marginTop: 8 }}>{editError}</div>
-                )}
-                <div style={{ marginTop: 12, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                {editError && <div className="text-xs text-warn mt-2">{editError}</div>}
+                <div className="mt-3 flex gap-2.5 justify-end">
                   <Btn variant="outline" size="md" onClick={cancelEdit}>취소</Btn>
                   <Btn variant="brand" size="md" onClick={saveEdit} disabled={editSaving}>
                     {editSaving ? '저장 중…' : '수정 저장'}
@@ -443,26 +400,27 @@ export default function ProposalDetailPage() {
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 15, color: COLORS.ink, lineHeight: 1.85, marginTop: 28, letterSpacing: '-0.005em', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              <div
+                className="text-lg text-ink mt-7"
+                style={{ lineHeight: 1.85, letterSpacing: '-0.005em', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}
+              >
                 {body}
               </div>
             )}
 
-            {/* Action buttons (only in read mode) */}
+            {/* Action buttons */}
             {!editMode && (
-              <div style={{ marginTop: 36, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div className="mt-9 flex gap-3 items-center">
                 <button
                   onClick={handleVote}
                   disabled={voteLoading || proposal?.status !== 'active'}
+                  className="flex-1 h-14 rounded-3 flex items-center justify-center gap-2.5 text-lg font-bold font-sans"
                   style={{
-                    flex: 1, height: 56, borderRadius: 12,
                     border: `1.5px solid ${voted ? COLORS.inkSub : COLORS.brand}`,
                     background: voted ? COLORS.surface : COLORS.brand,
                     color: voted ? COLORS.ink : '#fff',
-                    fontSize: 15, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                     cursor: (voteLoading || proposal?.status !== 'active') ? 'not-allowed' : 'pointer',
-                    fontFamily: 'inherit', letterSpacing: '-0.01em',
+                    letterSpacing: '-0.01em',
                     opacity: proposal?.status !== 'active' ? 0.5 : 1,
                   }}
                 >
@@ -474,7 +432,7 @@ export default function ProposalDetailPage() {
                 </button>
                 <Btn
                   variant="outline" size="lg"
-                  style={{ width: 130, background: saved ? COLORS.surfaceAlt : undefined }}
+                  style={{ width: 100, background: saved ? COLORS.surfaceAlt : undefined }}
                   onClick={handleSave}
                 >
                   저장{saved ? ' ✓' : ''}
@@ -483,7 +441,7 @@ export default function ProposalDetailPage() {
                   <Btn
                     variant="outline" size="lg"
                     style={{
-                      width: 130,
+                      width: 80,
                       color: reportDone ? COLORS.inkMuted : COLORS.warn,
                       borderColor: reportDone ? COLORS.line : '#F2D6C2',
                     }}
@@ -498,56 +456,33 @@ export default function ProposalDetailPage() {
 
             {/* ── Comments ── */}
             {!editMode && (
-              <div style={{ marginTop: 48 }}>
-                <div
-                  style={{
-                    fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em',
-                    marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8,
-                  }}
-                >
+              <div className="mt-12">
+                <div className="text-xl font-bold mb-5 flex items-center gap-2" style={{ letterSpacing: '-0.02em' }}>
                   의견
-                  <span style={{ fontSize: 13, color: COLORS.inkMuted, fontWeight: 500 }}>
-                    {commentCount}개
-                  </span>
+                  <span className="text-sm text-ink-muted font-medium">{commentCount}개</span>
                 </div>
 
-                {/* Comment input */}
                 {user && (
-                  <div
-                    style={{
-                      background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-                      borderRadius: 14, padding: 18, marginBottom: 20,
-                    }}
-                  >
+                  <div className="bg-surface border border-line rounded-3.5 p-4.5 mb-5">
                     <textarea
                       value={commentText}
                       onChange={e => setCommentText(e.target.value)}
                       placeholder="의견을 남겨주세요…"
                       rows={3}
-                      style={{
-                        width: '100%', border: 'none', outline: 'none', resize: 'none',
-                        fontSize: 14, color: COLORS.ink, fontFamily: 'inherit',
-                        background: 'transparent', letterSpacing: '-0.01em', lineHeight: 1.65,
-                        boxSizing: 'border-box',
-                      }}
+                      className="w-full border-none outline-none resize-none text-base text-ink font-sans bg-transparent box-border"
+                      style={{ letterSpacing: '-0.01em', lineHeight: 1.65 }}
                     />
-                    <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontSize: 12, color: COLORS.inkSub }}>
+                    <div className="mt-3 flex justify-between items-center">
+                      <label className="flex items-center gap-1.75 cursor-pointer text-xs text-ink-sub">
                         <div
                           onClick={() => setCommentAnon(!commentAnon)}
-                          style={{
-                            width: 30, height: 17, borderRadius: 99,
-                            background: commentAnon ? COLORS.ink : COLORS.line,
-                            position: 'relative', cursor: 'pointer', transition: 'background .15s',
-                          }}
+                          className="w-7.5 h-4 rounded-full relative cursor-pointer transition-colors"
+                          style={{ background: commentAnon ? COLORS.ink : COLORS.line }}
                         >
-                          <span style={{
-                            position: 'absolute', top: 2,
-                            left: commentAnon ? 15 : 2,
-                            width: 13, height: 13, borderRadius: 99,
-                            background: '#fff', transition: 'left .15s',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
-                          }} />
+                          <span
+                            className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all"
+                            style={{ left: commentAnon ? 15 : 2, boxShadow: '0 1px 2px rgba(0,0,0,0.15)' }}
+                          />
                         </div>
                         익명
                       </label>
@@ -562,55 +497,40 @@ export default function ProposalDetailPage() {
                   </div>
                 )}
 
-                {/* Comment list */}
                 {comments.length === 0 ? (
-                  <div style={{ padding: '32px 0', textAlign: 'center', color: COLORS.inkMuted, fontSize: 13 }}>
+                  <div className="py-8 text-center text-ink-muted text-sm">
                     아직 의견이 없습니다. 첫 번째 의견을 남겨보세요.
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="flex flex-col gap-3">
                     {comments.map(c => {
                       const isOwn = user?.id === c.author_id
                       const authorLabel = c.is_anonymous
                         ? `익명 · ${c.profiles?.grade ?? '?'}학년`
                         : (c.profiles?.name ?? '학생')
                       return (
-                        <div
-                          key={c.id}
-                          style={{
-                            padding: '16px 18px', background: COLORS.surface,
-                            border: `1px solid ${COLORS.line}`, borderRadius: 12,
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div
-                                style={{
-                                  width: 26, height: 26, borderRadius: 99,
-                                  background: COLORS.surfaceAlt, display: 'grid', placeItems: 'center', fontSize: 12,
-                                }}
-                              >
+                        <div key={c.id} className="px-4.5 py-4 bg-surface border border-line rounded-3">
+                          <div className="flex justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6.5 h-6.5 rounded-full bg-surface-alt grid place-items-center text-xs">
                                 {c.is_anonymous ? '🎭' : '👤'}
                               </div>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{authorLabel}</span>
-                              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
-                                {relativeTime(c.created_at)}
-                              </span>
+                              <span className="text-xs font-semibold text-ink">{authorLabel}</span>
+                              <span className="text-xs text-ink-muted">{relativeTime(c.created_at)}</span>
                             </div>
                             {(isOwn || IS_ADMIN) && (
                               <button
                                 onClick={() => handleDeleteComment(c.id)}
-                                style={{
-                                  border: 'none', background: 'none', cursor: 'pointer',
-                                  fontSize: 11, color: COLORS.inkMuted, padding: '2px 6px',
-                                  fontFamily: 'inherit',
-                                }}
+                                className="border-none bg-none cursor-pointer text-xs text-ink-muted px-1.5 py-0.5 font-sans"
                               >
                                 삭제
                               </button>
                             )}
                           </div>
-                          <p style={{ fontSize: 14, color: COLORS.ink, margin: 0, lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                          <p
+                            className="text-base text-ink m-0"
+                            style={{ lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                          >
                             {c.content}
                           </p>
                         </div>
@@ -623,45 +543,39 @@ export default function ProposalDetailPage() {
           </div>
 
           {/* ── Sidebar ── */}
-          <aside style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <aside className="flex flex-col gap-4 mt-8 lg:mt-0">
 
             {/* Vote progress */}
-            <div
-              style={{
-                background: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: 16,
-                padding: 24,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.14em',
-                  color: COLORS.brand,
-                  marginBottom: 14,
-                }}
-              >
+            <div className="bg-surface border border-line rounded-4 p-6">
+              <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.14em' }}>
                 VOTE PROGRESS
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 56, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: COLORS.ink, fontFeatureSettings: '"tnum"' }}>
+              <div className="flex items-baseline gap-1.5">
+                <span
+                  className="text-11xl font-extrabold leading-none text-ink"
+                  style={{ letterSpacing: '-0.04em', fontFeatureSettings: '"tnum"' }}
+                >
                   {voteCount}
                 </span>
-                <span style={{ fontSize: 16, color: COLORS.inkMuted, fontWeight: 500 }}>/ 30표</span>
+                <span className="text-xl text-ink-muted font-medium">/ 30표</span>
               </div>
-              <div style={{ marginTop: 14 }}>
+              <div className="mt-3.5">
                 <ProgressBar value={voteCount} max={30} height={10} />
               </div>
               {voteCount < 30 && proposal?.status === 'active' && (
-                <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#FFEFD9', fontSize: 12, color: '#7A4B0E', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div
+                  className="mt-3.5 px-3 py-2.5 rounded-2 flex items-center gap-2 text-xs font-medium"
+                  style={{ background: '#FFEFD9', color: '#7A4B0E' }}
+                >
                   <span>🔥</span>
-                  선정까지 단 <strong style={{ fontWeight: 700 }}>{30 - voteCount}표</strong>! 친구에게 공유해보세요.
+                  선정까지 단 <strong className="font-bold">{30 - voteCount}표</strong>! 친구에게 공유해보세요.
                 </div>
               )}
               {(voteCount >= 30 || (proposal?.status && proposal.status !== 'active')) && (
-                <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: COLORS.brandSoft, fontSize: 12, color: COLORS.brandDark, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div
+                  className="mt-3.5 px-3 py-2.5 rounded-2 flex items-center gap-2 text-xs font-medium text-brand-dark"
+                  style={{ background: COLORS.brandSoft }}
+                >
                   <span>✓</span>
                   {proposal?.status === 'done' ? '반영 완료! 학교가 응답했습니다.' :
                    proposal?.status === 'rejected' ? '이 안건은 반려되었습니다.' :
@@ -671,47 +585,36 @@ export default function ProposalDetailPage() {
             </div>
 
             {/* My status */}
-            <div
-              style={{
-                background: COLORS.ink,
-                color: '#fff',
-                borderRadius: 16,
-                padding: 22,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.14em',
-                  color: 'rgba(255,255,255,0.55)',
-                  marginBottom: 10,
-                }}
-              >
+            <div className="bg-ink text-white rounded-4 p-5.5">
+              <div className="text-xs font-bold mb-2.5" style={{ letterSpacing: '0.14em', color: 'rgba(255,255,255,0.55)' }}>
                 내 상태
               </div>
-              <div style={{ fontSize: 14, lineHeight: 1.7 }}>
+              <div className="text-base" style={{ lineHeight: 1.7 }}>
                 {isMyProposal
-                  ? <><strong style={{ fontWeight: 700 }}>내가 작성</strong>한 안건입니다.</>
+                  ? <><strong className="font-bold">내가 작성</strong>한 안건입니다.</>
                   : voted
-                  ? <><strong style={{ fontWeight: 700 }}>추천</strong>한 안건입니다.</>
+                  ? <><strong className="font-bold">추천</strong>한 안건입니다.</>
                   : '아직 추천하지 않은 안건입니다.'}
               </div>
               {isMyProposal && (
                 <>
-                  <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+                  <div
+                    className="mt-3.5 px-3 py-2.5 rounded-2 text-xs"
+                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}
+                  >
                     {canEdit
                       ? '진행 중인 안건은 수정/삭제할 수 있습니다.'
                       : '선정된 안건은 수정/삭제할 수 없습니다.'}
                   </div>
-                  <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                  <div className="mt-3.5 flex gap-2">
                     <button
                       disabled={!canEdit}
                       onClick={canEdit ? startEdit : undefined}
+                      className="flex-1 h-9 rounded-2 border-none text-xs font-sans"
                       style={{
-                        flex: 1, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.08)',
-                        color: canEdit ? '#fff' : 'rgba(255,255,255,0.4)', border: 'none',
-                        fontSize: 12, fontFamily: 'inherit', cursor: canEdit ? 'pointer' : 'not-allowed',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: canEdit ? '#fff' : 'rgba(255,255,255,0.4)',
+                        cursor: canEdit ? 'pointer' : 'not-allowed',
                       }}
                     >
                       수정
@@ -719,10 +622,11 @@ export default function ProposalDetailPage() {
                     <button
                       disabled={!canEdit}
                       onClick={canEdit ? () => setDeleteConfirm(true) : undefined}
+                      className="flex-1 h-9 rounded-2 border-none text-xs font-sans"
                       style={{
-                        flex: 1, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.08)',
-                        color: canEdit ? '#ff8a8a' : 'rgba(255,255,255,0.4)', border: 'none',
-                        fontSize: 12, fontFamily: 'inherit', cursor: canEdit ? 'pointer' : 'not-allowed',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: canEdit ? '#ff8a8a' : 'rgba(255,255,255,0.4)',
+                        cursor: canEdit ? 'pointer' : 'not-allowed',
                       }}
                     >
                       삭제
@@ -734,43 +638,22 @@ export default function ProposalDetailPage() {
 
             {/* Admin tools */}
             {IS_ADMIN && (
-              <div
-                style={{
-                  background: COLORS.brandSoft,
-                  border: `1px solid ${COLORS.brand}`,
-                  borderRadius: 16,
-                  padding: 22,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '0.14em',
-                    color: COLORS.brand,
-                    marginBottom: 12,
-                  }}
-                >
+              <div className="bg-brand-soft border border-brand rounded-4 p-5.5">
+                <div className="text-xs font-bold text-brand mb-3" style={{ letterSpacing: '0.14em' }}>
                   ⚙ 운영자 도구
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="flex flex-col gap-2">
                   <Btn variant="brand" size="sm" full onClick={openReplyModal}>
                     {existingReply ? '학생회 답변 수정' : '학생회 답변 작성'}
                   </Btn>
-
-                  {/* Status change dropdown */}
-                  <div style={{ position: 'relative' }}>
+                  <div className="relative">
                     <Btn variant="outline" size="sm" full onClick={() => setStatusMenuOpen(o => !o)}>
                       상태 변경 ({STATUS_LABELS[proposal?.status ?? 'active'] ?? '?'}) ▾
                     </Btn>
                     {statusMenuOpen && (
                       <div
-                        style={{
-                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99,
-                          background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-                          borderRadius: 10, overflow: 'hidden', marginTop: 4,
-                          boxShadow: '0 8px 24px -4px rgba(0,0,0,0.15)',
-                        }}
+                        className="absolute top-full left-0 right-0 z-[99] bg-surface border border-line rounded-2.5 overflow-hidden mt-1"
+                        style={{ boxShadow: '0 8px 24px -4px rgba(0,0,0,0.15)' }}
                       >
                         {[
                           { status: 'active',   label: '진행 중' },
@@ -781,11 +664,10 @@ export default function ProposalDetailPage() {
                           <button
                             key={status}
                             onClick={() => handleAdminStatus(status)}
+                            className="block w-full px-3.5 py-3 text-left border-none font-sans text-sm text-ink cursor-pointer"
                             style={{
-                              display: 'block', width: '100%', padding: '11px 14px',
-                              textAlign: 'left', border: 'none', background: proposal?.status === status ? COLORS.surfaceAlt : 'transparent',
-                              fontSize: 13, fontWeight: proposal?.status === status ? 700 : 400,
-                              color: COLORS.ink, cursor: 'pointer', fontFamily: 'inherit',
+                              background: proposal?.status === status ? COLORS.surfaceAlt : 'transparent',
+                              fontWeight: proposal?.status === status ? 700 : 400,
                             }}
                           >
                             {label} {proposal?.status === status ? '✓' : ''}
@@ -794,7 +676,6 @@ export default function ProposalDetailPage() {
                       </div>
                     )}
                   </div>
-
                   <Btn
                     variant="outline" size="sm" full
                     style={{ color: COLORS.warn, borderColor: '#F2D6C2' }}
@@ -806,24 +687,9 @@ export default function ProposalDetailPage() {
               </div>
             )}
 
-            {/* Activity stats — real data */}
-            <div
-              style={{
-                background: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: 16,
-                padding: 22,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.14em',
-                  color: COLORS.inkSub,
-                  marginBottom: 14,
-                }}
-              >
+            {/* Activity stats */}
+            <div className="bg-surface border border-line rounded-4 p-5.5">
+              <div className="text-xs font-bold text-ink-sub mb-3.5" style={{ letterSpacing: '0.14em' }}>
                 ACTIVITY
               </div>
               {[
@@ -832,46 +698,21 @@ export default function ProposalDetailPage() {
                 ['의견', `${commentCount}개`],
                 ['저장', `${savesCount}명`],
               ].map(([k, v]) => (
-                <div
-                  key={k}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '8px 0',
-                    fontSize: 13,
-                    borderTop: `1px solid ${COLORS.lineSoft}`,
-                  }}
-                >
-                  <span style={{ color: COLORS.inkSub }}>{k}</span>
-                  <span style={{ color: COLORS.ink, fontWeight: 600, fontFeatureSettings: '"tnum"' }}>
-                    {v}
-                  </span>
+                <div key={k} className="flex justify-between py-2 text-sm border-t border-line-soft">
+                  <span className="text-ink-sub">{k}</span>
+                  <span className="text-ink font-semibold" style={{ fontFeatureSettings: '"tnum"' }}>{v}</span>
                 </div>
               ))}
             </div>
 
-            {/* Official reply (read-only, shown to all) */}
+            {/* Official reply */}
             {existingReply && (
-              <div
-                style={{
-                  background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-                  borderRadius: 16, padding: 22,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.14em',
-                    color: COLORS.brand, marginBottom: 10,
-                  }}
-                >
+              <div className="bg-surface border border-line rounded-4 p-5.5">
+                <div className="text-2xs font-bold text-brand mb-2.5" style={{ letterSpacing: '0.14em' }}>
                   OFFICIAL REPLY
                 </div>
-                <p style={{ fontSize: 13, color: COLORS.ink, margin: 0, lineHeight: 1.65 }}>
-                  {existingReply.content}
-                </p>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 10 }}>
-                  — {existingReply.signed_by}
-                </div>
+                <p className="text-sm text-ink m-0" style={{ lineHeight: 1.65 }}>{existingReply.content}</p>
+                <div className="text-xs text-ink-muted mt-2.5">— {existingReply.signed_by}</div>
               </div>
             )}
           </aside>
@@ -881,23 +722,17 @@ export default function ProposalDetailPage() {
       {/* ── Report modal ── */}
       {reportOpen && (
         <Modal title="이 안건을 신고하시겠습니까?" onClose={() => setReportOpen(false)}>
-          <p style={{ fontSize: 13, color: COLORS.inkSub, marginTop: 0, marginBottom: 16, lineHeight: 1.6 }}>
+          <p className="text-sm text-ink-sub mt-0 mb-4" style={{ lineHeight: 1.6 }}>
             허위 사실, 욕설, 비방 등 커뮤니티 가이드라인에 위반되는 내용을 신고해 주세요.
-            허위 신고 시 제재를 받을 수 있습니다.
           </p>
           <textarea
             value={reportReason}
             onChange={e => setReportReason(e.target.value)}
             placeholder="신고 사유를 입력해주세요 (선택)"
             rows={3}
-            style={{
-              width: '100%', border: `1px solid ${COLORS.line}`, borderRadius: 10,
-              padding: '12px 14px', fontSize: 13, fontFamily: 'inherit',
-              color: COLORS.ink, background: COLORS.surfaceAlt, outline: 'none',
-              resize: 'none', boxSizing: 'border-box', marginBottom: 16,
-            }}
+            className="w-full border border-line rounded-2.5 px-3.5 py-3 text-sm font-sans text-ink bg-surface-alt outline-none resize-none box-border mb-4"
           />
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <div className="flex gap-2.5 justify-end">
             <Btn variant="outline" size="md" onClick={() => setReportOpen(false)}>취소</Btn>
             <Btn
               variant="primary" size="md"
@@ -914,10 +749,10 @@ export default function ProposalDetailPage() {
       {/* ── Delete confirm modal ── */}
       {deleteConfirm && (
         <Modal title="안건을 삭제하시겠습니까?" onClose={() => setDeleteConfirm(false)}>
-          <p style={{ fontSize: 13, color: COLORS.inkSub, marginTop: 0, marginBottom: 20, lineHeight: 1.6 }}>
+          <p className="text-sm text-ink-sub mt-0 mb-5" style={{ lineHeight: 1.6 }}>
             삭제된 안건은 복구할 수 없습니다. 정말로 삭제하시겠습니까?
           </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <div className="flex gap-2.5 justify-end">
             <Btn variant="outline" size="md" onClick={() => setDeleteConfirm(false)}>취소</Btn>
             <Btn
               variant="primary" size="md"
@@ -937,39 +772,27 @@ export default function ProposalDetailPage() {
           title={existingReply ? '학생회 답변 수정' : '학생회 공식 답변 작성'}
           onClose={() => setReplyOpen(false)}
         >
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>답변 내용</div>
+          <div className="mb-3">
+            <div className="text-xs font-semibold text-ink mb-2">답변 내용</div>
             <textarea
               value={replyContent}
               onChange={e => setReplyContent(e.target.value)}
               placeholder="학생회 공식 입장을 작성해주세요…"
               rows={5}
-              style={{
-                width: '100%', border: `1px solid ${COLORS.line}`, borderRadius: 10,
-                padding: '12px 14px', fontSize: 13, fontFamily: 'inherit',
-                color: COLORS.ink, background: COLORS.surfaceAlt, outline: 'none',
-                resize: 'none', boxSizing: 'border-box',
-              }}
+              className="w-full border border-line rounded-2.5 px-3.5 py-3 text-sm font-sans text-ink bg-surface-alt outline-none resize-none box-border"
             />
           </div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>서명 (예: 대신고 학생회)</div>
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-ink mb-2">서명 (예: 대신고 학생회)</div>
             <input
               value={replySignedBy}
               onChange={e => setReplySignedBy(e.target.value)}
               placeholder="서명자 또는 부서명"
-              style={{
-                width: '100%', border: `1px solid ${COLORS.line}`, borderRadius: 10,
-                padding: '10px 14px', fontSize: 13, fontFamily: 'inherit',
-                color: COLORS.ink, background: COLORS.surfaceAlt, outline: 'none',
-                boxSizing: 'border-box',
-              }}
+              className="w-full border border-line rounded-2.5 px-3.5 py-2.5 text-sm font-sans text-ink bg-surface-alt outline-none box-border"
             />
           </div>
-          {replyError && (
-            <div style={{ fontSize: 12, color: COLORS.warn, marginBottom: 12 }}>{replyError}</div>
-          )}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          {replyError && <div className="text-xs text-warn mb-3">{replyError}</div>}
+          <div className="flex gap-2.5 justify-end">
             <Btn variant="outline" size="md" onClick={() => setReplyOpen(false)}>취소</Btn>
             <Btn variant="brand" size="md" onClick={saveReply} disabled={replySaving}>
               {replySaving ? '저장 중…' : '저장하기'}
@@ -978,12 +801,8 @@ export default function ProposalDetailPage() {
         </Modal>
       )}
 
-      {/* Close status menu on outside click */}
       {statusMenuOpen && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 98 }}
-          onClick={() => setStatusMenuOpen(false)}
-        />
+        <div className="fixed inset-0 z-[98]" onClick={() => setStatusMenuOpen(false)} />
       )}
     </AppLayout>
   )

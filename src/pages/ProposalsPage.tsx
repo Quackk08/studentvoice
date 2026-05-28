@@ -40,13 +40,7 @@ function relativeTime(dateStr: string) {
 // ── Sub-components ────────────────────────────────────────
 function TagPill({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      style={{
-        fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
-        background: COLORS.surfaceAlt, color: COLORS.inkSub, border: `1px solid ${COLORS.line}`,
-        flexShrink: 0,
-      }}
-    >
+    <span className="text-xs font-semibold px-2 py-0.75 rounded-1 bg-surface-alt text-ink-sub border border-line flex-shrink-0">
       {children}
     </span>
   )
@@ -57,36 +51,25 @@ function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
   return (
     <div
       onClick={onClick}
+      className="bg-surface rounded-4 cursor-pointer flex flex-col gap-3 min-w-0 overflow-hidden"
       style={{
-        background: COLORS.surface,
         border: `1px solid ${isHot ? COLORS.brand : COLORS.line}`,
-        borderRadius: 16,
         padding: '22px 24px',
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        transition: 'border-color .15s, box-shadow .15s',
         boxShadow: isHot ? `0 0 0 1px ${COLORS.brand}10` : 'none',
-        /* Grid 아이템이 컨텐츠 크기 이하로 줄어들 수 있게 */
-        minWidth: 0,
-        overflow: 'hidden',
       }}
     >
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <div className="flex items-center gap-2 min-w-0">
         <TagPill>{p.category}</TagPill>
         {isHot && <Badge tone="fire">🔥 인기</Badge>}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: COLORS.inkMuted, flexShrink: 0 }}>
-          {relativeTime(p.created_at)}
-        </span>
+        <span className="ml-auto text-xs text-ink-muted flex-shrink-0">{relativeTime(p.created_at)}</span>
       </div>
 
       {/* Title */}
       <h3
+        className="text-xl font-bold m-0 text-ink"
         style={{
-          fontSize: 16, fontWeight: 700, margin: 0,
-          lineHeight: 1.4, letterSpacing: '-0.02em', color: COLORS.ink,
+          lineHeight: 1.4, letterSpacing: '-0.02em',
           display: '-webkit-box', WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical', overflow: 'hidden',
           wordBreak: 'break-word', overflowWrap: 'break-word',
@@ -97,9 +80,9 @@ function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
 
       {/* Body preview */}
       <p
+        className="text-sm text-ink-sub m-0"
         style={{
-          fontSize: 13, color: COLORS.inkSub, margin: 0, lineHeight: 1.65,
-          display: '-webkit-box', WebkitLineClamp: 2,
+          lineHeight: 1.65, display: '-webkit-box', WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical', overflow: 'hidden',
           wordBreak: 'break-word', overflowWrap: 'break-word',
         }}
@@ -108,17 +91,15 @@ function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
       </p>
 
       {/* Vote progress */}
-      <div style={{ marginTop: 'auto' }}>
-        <div
-          style={{
-            display: 'flex', justifyContent: 'space-between',
-            alignItems: 'baseline', marginBottom: 6,
-          }}
-        >
-          <span style={{ fontSize: 11, color: COLORS.inkSub }}>선정까지</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: isHot ? COLORS.brand : COLORS.ink, fontFeatureSettings: '"tnum"' }}>
+      <div className="mt-auto">
+        <div className="flex justify-between items-baseline mb-1.5">
+          <span className="text-xs text-ink-sub">선정까지</span>
+          <span
+            className="text-xs font-bold"
+            style={{ color: isHot ? COLORS.brand : COLORS.ink, fontFeatureSettings: '"tnum"' }}
+          >
             {p.vote_count}
-            <span style={{ color: COLORS.inkMuted, fontWeight: 500 }}> / 30표</span>
+            <span className="text-ink-muted font-medium"> / 30표</span>
           </span>
         </div>
         <ProgressBar value={p.vote_count} max={30} height={6} />
@@ -126,18 +107,15 @@ function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
 
       {/* Footer */}
       <div
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          fontSize: 11.5, color: COLORS.inkMuted,
-          paddingTop: 10, borderTop: `1px solid ${COLORS.lineSoft}`,
-        }}
+        className="flex items-center gap-3 pt-2.5 border-t border-line-soft"
+        style={{ fontSize: 11.5, color: COLORS.inkMuted }}
       >
         <span>
           {p.is_anonymous
             ? `익명 · ${p.profiles?.grade ?? '?'}학년`
             : `${p.profiles?.grade ?? '?'}학년`}
         </span>
-        <span style={{ marginLeft: 'auto' }}>💬 {p.comment_count}</span>
+        <span className="ml-auto">💬 {p.comment_count}</span>
         <span>👁 {p.view_count}</span>
       </div>
     </div>
@@ -146,29 +124,18 @@ function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
 
 function SkeletonCard() {
   return (
-    <div
-      style={{
-        background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-        borderRadius: 16, padding: '22px 24px', height: 240,
-        opacity: 0.5,
-      }}
-    />
+    <div className="bg-surface border border-line rounded-4 opacity-50 animate-pulse" style={{ height: 240 }} />
   )
 }
 
 function EmptyState({ category }: { category: string }) {
   return (
-    <div
-      style={{
-        gridColumn: '1 / -1', padding: '80px 0',
-        textAlign: 'center', color: COLORS.inkMuted,
-      }}
-    >
-      <div style={{ fontSize: 40, marginBottom: 16 }}>📭</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.inkSub, marginBottom: 8 }}>
+    <div className="col-span-full py-20 text-center text-ink-muted">
+      <div className="text-5xl mb-4">📭</div>
+      <div className="text-xl font-bold text-ink-sub mb-2">
         {category === 'all' ? '진행 중인 안건이 없습니다' : `${category} 카테고리에 안건이 없습니다`}
       </div>
-      <div style={{ fontSize: 13, maxWidth: 320, margin: '0 auto', lineHeight: 1.65 }}>
+      <div className="text-sm mx-auto max-w-xs" style={{ lineHeight: 1.65 }}>
         첫 번째 안건을 제안해 30표를 모아보세요!
       </div>
     </div>
@@ -186,7 +153,6 @@ export default function ProposalsPage() {
 
   const { data: rawData, loading } = useAllProposals(activeCategory, activeSort)
 
-  // 클라이언트 사이드 검색 필터
   const data: Proposal[] = search.trim()
     ? rawData.filter(p =>
         p.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -197,42 +163,22 @@ export default function ProposalsPage() {
   return (
     <AppLayout active="proposals" isAdmin={profile?.is_admin ?? false}>
       {/* ── Hero ── */}
-      <section style={{ padding: '48px 48px 0', background: COLORS.bg }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div
-            style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
-              color: COLORS.brand, marginBottom: 14,
-            }}
-          >
+      <section className="px-4 sm:px-12 pt-8 sm:pt-12 pb-0 bg-bg">
+        <div className="max-w-[1200px] mx-auto">
+          <div className="text-xs font-bold text-brand mb-3.5" style={{ letterSpacing: '0.18em' }}>
             ALL PROPOSALS
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24 }}>
-            <h1
-              style={{
-                fontSize: 44, fontWeight: 800, margin: 0,
-                letterSpacing: '-0.032em', lineHeight: 1.05,
-              }}
-            >
+          <div className="flex items-end gap-6">
+            <h1 className="text-9xl sm:text-10xl font-extrabold m-0" style={{ letterSpacing: '-0.032em', lineHeight: 1.05 }}>
               진행 중인 안건
             </h1>
             {!loading && (
-              <span
-                style={{
-                  fontSize: 16, color: COLORS.inkMuted, fontWeight: 500,
-                  marginBottom: 6, letterSpacing: '-0.01em',
-                }}
-              >
+              <span className="text-xl text-ink-muted font-medium mb-1.5" style={{ letterSpacing: '-0.01em' }}>
                 총 {rawData.length}건
               </span>
             )}
           </div>
-          <p
-            style={{
-              fontSize: 14, color: COLORS.inkSub, marginTop: 12,
-              maxWidth: 560, lineHeight: 1.65,
-            }}
-          >
+          <p className="text-base text-ink-sub mt-3 max-w-[560px]" style={{ lineHeight: 1.65 }}>
             추천 30표를 달성하면 학생회로 자동 전달됩니다. 공감하는 안건에 추천을 눌러주세요.
           </p>
         </div>
@@ -240,30 +186,24 @@ export default function ProposalsPage() {
 
       {/* ── Filter / Search bar ── */}
       <section
-        style={{
-          padding: '24px 48px 0',
-          background: COLORS.bg,
-          position: 'sticky', top: 0, zIndex: 10,
-          borderBottom: `1px solid ${COLORS.line}`,
-        }}
+        className="px-4 sm:px-12 pt-6 pb-0 bg-bg sticky top-0 z-10 border-b border-line"
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 0 }}>
-            {/* Category tabs */}
-            <div style={{ display: 'flex', gap: 2, flex: 1 }}>
+        <div className="max-w-[1200px] mx-auto">
+          {/* Category tabs — scrollable on mobile */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-0 scrollbar-hide">
+            <div className="flex gap-0.5 flex-1 min-w-0 overflow-x-auto">
               {CATEGORY_TABS.map(t => {
                 const isActive = activeCategory === t.id
                 return (
                   <button
                     key={t.id}
                     onClick={() => { setActiveCategory(t.id); setSearch('') }}
+                    className="flex-shrink-0 px-3 sm:px-4 py-2.5 border-none bg-transparent font-sans cursor-pointer -mb-px"
                     style={{
-                      padding: '10px 16px', border: 'none', background: 'transparent',
                       fontSize: 13, fontWeight: isActive ? 700 : 500,
                       color: isActive ? COLORS.ink : COLORS.inkSub,
                       borderBottom: `2px solid ${isActive ? COLORS.ink : 'transparent'}`,
-                      cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
-                      marginBottom: -1,
+                      letterSpacing: '-0.01em',
                     }}
                   >
                     {t.label}
@@ -272,72 +212,83 @@ export default function ProposalsPage() {
               })}
             </div>
 
-            {/* Sort */}
-            <div style={{ display: 'flex', gap: 4, paddingBottom: 1 }}>
+            {/* Sort + Search — desktop */}
+            <div className="hidden sm:flex items-center gap-1 pb-1 flex-shrink-0">
               {SORT_OPTIONS.map(s => {
                 const isActive = activeSort === s.id
                 return (
                   <button
                     key={s.id}
                     onClick={() => setActiveSort(s.id)}
+                    className="px-3 py-1.5 rounded-2 text-xs font-semibold cursor-pointer font-sans"
                     style={{
-                      padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                       background: isActive ? COLORS.ink : COLORS.surface,
                       color: isActive ? '#fff' : COLORS.inkSub,
                       border: `1px solid ${isActive ? COLORS.ink : COLORS.line}`,
-                      cursor: 'pointer', fontFamily: 'inherit',
                     }}
                   >
                     {s.label}
                   </button>
                 )
               })}
+              <div className="flex items-center gap-2 ml-1 border border-line rounded-2 bg-surface h-8 px-3">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
+                  <circle cx="7" cy="7" r="4.5" stroke={COLORS.inkSub} strokeWidth="1.4" />
+                  <path d="M13 13l-2.5-2.5" stroke={COLORS.inkSub} strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="안건 검색"
+                  className="border-none outline-none text-xs text-ink bg-transparent font-sans w-32"
+                />
+                {search && (
+                  <button onClick={() => setSearch('')} className="border-none bg-none cursor-pointer text-sm text-ink-muted p-0 leading-none">✕</button>
+                )}
+              </div>
             </div>
+          </div>
 
-            {/* Search */}
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 1,
-                border: `1px solid ${COLORS.line}`, borderRadius: 8,
-                background: COLORS.surface, height: 34, padding: '0 12px',
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+          {/* Mobile: sort row */}
+          <div className="flex sm:hidden items-center gap-1.5 py-2 overflow-x-auto">
+            {SORT_OPTIONS.map(s => {
+              const isActive = activeSort === s.id
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveSort(s.id)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-2 text-xs font-semibold cursor-pointer font-sans"
+                  style={{
+                    background: isActive ? COLORS.ink : COLORS.surface,
+                    color: isActive ? '#fff' : COLORS.inkSub,
+                    border: `1px solid ${isActive ? COLORS.ink : COLORS.line}`,
+                  }}
+                >
+                  {s.label}
+                </button>
+              )
+            })}
+            <div className="flex-1" />
+            <div className="flex items-center gap-2 border border-line rounded-2 bg-surface h-8 px-3 flex-shrink-0">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                 <circle cx="7" cy="7" r="4.5" stroke={COLORS.inkSub} strokeWidth="1.4" />
                 <path d="M13 13l-2.5-2.5" stroke={COLORS.inkSub} strokeWidth="1.4" strokeLinecap="round" />
               </svg>
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="안건 검색"
-                style={{
-                  border: 'none', outline: 'none', fontSize: 12, color: COLORS.ink,
-                  background: 'transparent', fontFamily: 'inherit', width: 130,
-                }}
+                placeholder="검색"
+                className="border-none outline-none text-xs text-ink bg-transparent font-sans w-20"
               />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: COLORS.inkMuted, padding: 0, lineHeight: 1 }}
-                >
-                  ✕
-                </button>
-              )}
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Proposal grid ── */}
-      <section style={{ padding: '28px 48px 80px', background: COLORS.bg }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-              gap: 18,
-            }}
-          >
+      <section className="px-4 sm:px-12 py-7 sm:pb-20 bg-bg">
+        <div className="max-w-[1200px] mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-4.5">
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
             ) : data.length === 0 ? (
@@ -353,13 +304,12 @@ export default function ProposalsPage() {
             )}
           </div>
 
-          {/* 검색 결과 없음 메시지 */}
           {!loading && search && data.length === 0 && (
-            <div style={{ textAlign: 'center', marginTop: 40, color: COLORS.inkMuted, fontSize: 13 }}>
+            <div className="text-center mt-10 text-ink-muted text-sm">
               '{search}'에 대한 결과가 없습니다.{' '}
               <button
                 onClick={() => setSearch('')}
-                style={{ background: 'none', border: 'none', color: COLORS.brand, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}
+                className="bg-none border-none text-brand cursor-pointer font-sans text-sm font-semibold"
               >
                 검색 초기화
               </button>
@@ -368,16 +318,14 @@ export default function ProposalsPage() {
         </div>
       </section>
 
-      {/* FAB */}
+      {/* FAB — desktop only */}
       <div
         onClick={() => navigate('/write')}
+        className="hidden sm:flex fixed right-9 bottom-9 z-50 items-center gap-3 rounded-full text-white text-base font-semibold cursor-pointer"
         style={{
-          position: 'fixed', right: 36, bottom: 36, zIndex: 50,
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '14px 22px 14px 18px', borderRadius: 999,
-          background: COLORS.ink, color: '#fff',
+          background: COLORS.ink,
+          padding: '14px 22px 14px 18px',
           boxShadow: '0 12px 32px -8px rgba(0,0,0,0.35), 0 4px 10px -2px rgba(0,0,0,0.15)',
-          fontSize: 14, fontWeight: 600, cursor: 'pointer',
         }}
       >
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
