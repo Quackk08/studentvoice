@@ -4,12 +4,24 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? 'https://placeholder.su
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'placeholder'
 
 // HTTP 헤더 값은 ISO-8859-1 범위(0x00–0xFF)만 허용됨.
-// 사용자 메타데이터에 한글이 포함된 경우 Supabase 내부 fetch가
-// "String contains non ISO-8859-1 code point" 오류를 발생시킬 수 있어
-// 커스텀 fetch로 헤더를 안전하게 sanitize한다.
+// supabase-js / postgrest-js 내부에서 new Headers() 생성 시 한글 등
+// non-Latin1 문자가 헤더 값에 들어오면 브라우저가 즉시 TypeError를 던진다.
+// safeFetch만으로는 fetch() 호출 이전에 이미 발생하는 에러를 막을 수 없으므로
+// Headers.prototype.set/append 를 전역 패치하여 가장 이른 시점에 차단한다.
 function sanitizeHeaderValue(value: string): string {
   // non-Latin1 문자(한글 등)를 제거
   return value.replace(/[^\x00-\xFF]/g, '')
+}
+
+if (typeof Headers !== 'undefined') {
+  const _hSet = Headers.prototype.set
+  Headers.prototype.set = function (name: string, value: string) {
+    return _hSet.call(this, name, sanitizeHeaderValue(String(value)))
+  }
+  const _hAppend = Headers.prototype.append
+  Headers.prototype.append = function (name: string, value: string) {
+    return _hAppend.call(this, name, sanitizeHeaderValue(String(value)))
+  }
 }
 
 const safeFetch: typeof globalThis.fetch = (input, init) => {
