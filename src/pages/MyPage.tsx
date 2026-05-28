@@ -61,9 +61,54 @@ function Stat({ n, l, tone }: { n: string; l: string; tone?: 'brand' }) {
 // ── Page ──
 export default function MyPage() {
   const navigate = useNavigate()
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const { data: myProposals, loading } = useMyProposals(user?.id)
   const { settings: notifSettings, updateSetting } = useNotificationSettings(user?.id)
+
+  // Profile edit state
+  const [profileEditing, setProfileEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editGrade, setEditGrade] = useState<number | ''>('')
+  const [editClass, setEditClass] = useState<number | ''>('')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileStatus, setProfileStatus] = useState<string | null>(null)
+
+  const handleStartEdit = () => {
+    setEditName(profile?.name ?? '')
+    setEditGrade(profile?.grade ?? '')
+    setEditClass(profile?.class ?? '')
+    setProfileStatus(null)
+    setProfileEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    setProfileEditing(false)
+    setProfileStatus(null)
+  }
+
+  const handleSaveProfile = async () => {
+    if (!user) return
+    if (!editName.trim()) { setProfileStatus('이름을 입력해주세요.'); return }
+    const classVal = Number(editClass)
+    if (editClass !== '' && (classVal < 1 || classVal > 20)) {
+      setProfileStatus('반은 1~20 사이로 입력해주세요.'); return
+    }
+    setProfileSaving(true)
+    setProfileStatus(null)
+    const { error } = await supabase.from('profiles').update({
+      name: editName.trim(),
+      ...(editGrade !== '' ? { grade: Number(editGrade) } : {}),
+      ...(editClass !== '' ? { class: classVal } : {}),
+    }).eq('id', user.id)
+    if (error) {
+      setProfileStatus('저장 중 오류가 발생했습니다.')
+    } else {
+      await refreshProfile()
+      setProfileEditing(false)
+      setProfileStatus('✓ 프로필이 업데이트되었습니다.')
+    }
+    setProfileSaving(false)
+  }
 
   // Password change state
   const [curPw, setCurPw] = useState('')
@@ -152,25 +197,110 @@ export default function MyPage() {
               >
                 {initials(profile?.name, profile?.email)}
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
-                    {displayName}
-                  </span>
-                  {gradeClass && <Badge>{gradeClass}</Badge>}
+
+              {profileEditing ? (
+                /* ── Edit form ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                  {/* Name */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkSub, marginBottom: 4 }}>이름</div>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      placeholder="이름"
+                      maxLength={40}
+                      style={{
+                        width: '100%', maxWidth: 220, height: 36, border: `1px solid ${COLORS.line}`,
+                        borderRadius: 8, padding: '0 12px', fontSize: 14, color: COLORS.ink,
+                        fontFamily: 'inherit', outline: 'none', background: COLORS.surface,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  {/* Grade + Class */}
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkSub, marginBottom: 4 }}>학년</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[1, 2, 3].map(g => (
+                          <button
+                            key={g}
+                            onClick={() => setEditGrade(editGrade === g ? '' : g)}
+                            style={{
+                              width: 36, height: 36, borderRadius: 8, fontSize: 13, fontWeight: 600,
+                              border: `1px solid ${editGrade === g ? COLORS.brand : COLORS.line}`,
+                              background: editGrade === g ? COLORS.brand : COLORS.surface,
+                              color: editGrade === g ? '#fff' : COLORS.ink,
+                              cursor: 'pointer', fontFamily: 'inherit',
+                            }}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkSub, marginBottom: 4 }}>반</div>
+                      <input
+                        type="number"
+                        value={editClass}
+                        onChange={e => setEditClass(e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="반"
+                        min={1} max={20}
+                        style={{
+                          width: 64, height: 36, border: `1px solid ${COLORS.line}`,
+                          borderRadius: 8, padding: '0 10px', fontSize: 14, color: COLORS.ink,
+                          fontFamily: 'inherit', outline: 'none', background: COLORS.surface,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {/* Status */}
+                  {profileStatus && (
+                    <div style={{ fontSize: 12, color: profileStatus.startsWith('✓') ? COLORS.brand : COLORS.warn }}>
+                      {profileStatus}
+                    </div>
+                  )}
+                  {/* Save / Cancel */}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                    <Btn variant="primary" size="sm" onClick={handleSaveProfile} disabled={profileSaving}>
+                      {profileSaving ? '저장 중…' : '저장'}
+                    </Btn>
+                    <Btn variant="outline" size="sm" onClick={handleCancelEdit} disabled={profileSaving}>
+                      취소
+                    </Btn>
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: COLORS.inkSub }}>{displayEmail}</div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
-                  재학생 계정 · {profile?.is_admin ? '운영자' : '일반 학생'}
+              ) : (
+                /* ── Display mode ── */
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
+                      {displayName}
+                    </span>
+                    {gradeClass && <Badge>{gradeClass}</Badge>}
+                  </div>
+                  <div style={{ fontSize: 13, color: COLORS.inkSub }}>{displayEmail}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+                    재학생 계정 · {profile?.is_admin ? '운영자' : '일반 학생'}
+                  </div>
+                  {profileStatus && (
+                    <div style={{ fontSize: 12, color: COLORS.brand, marginTop: 6 }}>{profileStatus}</div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Stats + Sign out */}
             <div style={{ display: 'flex', gap: 32, paddingLeft: 32, borderLeft: `1px solid ${COLORS.lineSoft}`, alignItems: 'flex-start' }}>
               <Stat n={String(totalProposals)} l="작성한 안건" />
               <Stat n={String(selectedCount)} l="선정된 안건" tone="brand" />
-              <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center' }}>
+              <div style={{ marginLeft: 8, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+                {!profileEditing && (
+                  <Btn variant="outline" size="sm" onClick={handleStartEdit}>정보 수정</Btn>
+                )}
                 <Btn variant="outline" size="sm" onClick={handleSignOut}>로그아웃</Btn>
               </div>
             </div>
