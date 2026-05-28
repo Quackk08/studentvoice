@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import MicMark from '../components/shared/MicMark'
 import Btn from '../components/shared/Btn'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth, isEmailVerified } from '../contexts/AuthContext'
 import { isSchoolEmail, normalizeText, validatePassword } from '../lib/security'
 import { supabase } from '../lib/supabase'
 import { COLORS } from '../tokens/tokens'
@@ -176,7 +176,15 @@ function SuccessBanner({ msg }: { msg: string }) {
 // ════════════════════════════════════════════════════════════
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { signIn, signUp, profile } = useAuth()
+  const { signIn, signUp, profile, user, loading } = useAuth()
+
+  // 이미 로그인된 상태(이메일 확인 후 리디렉션 포함)이면 자동 이동
+  useEffect(() => {
+    if (loading) return
+    if (user && isEmailVerified(user)) {
+      navigate(profile?.agreed_to_guidelines ? '/home' : '/guidelines', { replace: true })
+    }
+  }, [user, profile, loading])
 
   // Mode: 'login' | 'signup' | 'forgot'
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login')
