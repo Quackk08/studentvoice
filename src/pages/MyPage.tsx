@@ -101,7 +101,7 @@ export default function MyPage() {
       ...(editClass !== '' ? { class: classVal } : {}),
     }).eq('id', user.id)
     if (error) {
-      setProfileStatus('저장 중 오류가 발생했습니다.')
+      setProfileStatus(`오류: ${error.message || error.code || JSON.stringify(error)}`)
     } else {
       await refreshProfile()
       setProfileEditing(false)
