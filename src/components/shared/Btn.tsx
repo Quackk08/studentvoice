@@ -35,6 +35,7 @@ export default function Btn({
 }: BtnProps) {
   const v = VARIANTS[variant]
   const s = SIZES[size]
+  const isDisabled = rest.disabled
 
   return (
     <button
@@ -50,11 +51,13 @@ export default function Btn({
         padding: `${s.py}px ${s.px}px`,
         fontSize: s.fs,
         fontWeight: 600,
-        cursor: 'pointer',
+        cursor: isDisabled ? 'not-allowed' : 'pointer',
+        opacity: isDisabled ? 0.5 : 1,
         letterSpacing: '-0.01em',
         width: full ? '100%' : undefined,
         height: s.h,
         fontFamily: 'inherit',
+        pointerEvents: isDisabled ? 'none' : undefined,
         ...style,
       }}
       {...rest}

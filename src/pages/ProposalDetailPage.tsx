@@ -107,15 +107,18 @@ export default function ProposalDetailPage() {
   const handleVote = async () => {
     if (!user || !id) { navigate('/login'); return }
     setVoteLoading(true)
-    if (voted) {
-      await unvoteProposal(id, user.id)
-      setVoted(false)
-    } else {
-      await voteProposal(id, user.id)
-      setVoted(true)
+    try {
+      if (voted) {
+        await unvoteProposal(id, user.id)
+        setVoted(false)
+      } else {
+        await voteProposal(id, user.id)
+        setVoted(true)
+      }
+      await refetch()
+    } finally {
+      setVoteLoading(false)
     }
-    await refetch()
-    setVoteLoading(false)
   }
 
   const handleSave = async () => {
@@ -139,10 +142,13 @@ export default function ProposalDetailPage() {
   const handleAddComment = async () => {
     if (!user || !id || !commentText.trim()) return
     setCommentLoading(true)
-    await addComment(id, user.id, commentText.trim(), commentAnon)
-    setCommentText('')
-    await refetchComments()
-    setCommentLoading(false)
+    try {
+      await addComment(id, user.id, commentText.trim(), commentAnon)
+      setCommentText('')
+      await refetchComments()
+    } finally {
+      setCommentLoading(false)
+    }
   }
 
   const handleDeleteComment = async (commentId: string) => {
@@ -212,9 +218,12 @@ export default function ProposalDetailPage() {
   const handleDelete = async () => {
     if (!id) return
     setDeleteLoading(true)
-    await deleteProposal(id)
-    setDeleteLoading(false)
-    navigate('/home')
+    try {
+      await deleteProposal(id)
+      navigate('/home')
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   // ── Admin: status change ─────────────────────────────────

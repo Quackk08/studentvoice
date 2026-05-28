@@ -25,16 +25,19 @@ export default function WritePage() {
     if (body.length < 50) { setErrorMsg('본문을 50자 이상 입력해주세요.'); return }
     setSubmitting(true)
     setErrorMsg(null)
-    const { data, error } = await submitProposal({
-      authorId: user.id,
-      category: CATS[selectedCat] as ProposalCategory,
-      title,
-      body,
-      isAnonymous: anonymous,
-    })
-    setSubmitting(false)
-    if (error) { setErrorMsg('제출 중 오류가 발생했습니다. 다시 시도해주세요.'); return }
-    navigate(`/proposals/${data!.id}`)
+    try {
+      const { data, error } = await submitProposal({
+        authorId: user.id,
+        category: CATS[selectedCat] as ProposalCategory,
+        title,
+        body,
+        isAnonymous: anonymous,
+      })
+      if (error) { setErrorMsg('제출 중 오류가 발생했습니다. 다시 시도해주세요.'); return }
+      navigate(`/proposals/${data!.id}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (

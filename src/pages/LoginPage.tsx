@@ -219,12 +219,15 @@ export default function LoginPage() {
     if (!normalizedEmail) { setErrorMsg('이메일을 입력해주세요.'); return }
     if (!isSchoolEmail(normalizedEmail)) { setErrorMsg('대전대신고 이메일(@dshs.kr)만 사용할 수 있습니다.'); return }
     setIsLoading(true); setErrorMsg(null)
-    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    setIsLoading(false)
-    if (error) { setErrorMsg('링크 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'); return }
-    setSuccessMsg(`${normalizedEmail} 으로 재설정 링크를 보냈습니다. 학교 이메일함을 확인해주세요.`)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) { setErrorMsg('링크 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'); return }
+      setSuccessMsg(`${normalizedEmail} 으로 재설정 링크를 보냈습니다. 학교 이메일함을 확인해주세요.`)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // ── Login ──
@@ -232,16 +235,15 @@ export default function LoginPage() {
     const normalizedEmail = email.trim().toLowerCase()
     if (!normalizedEmail || !password) { setErrorMsg('이메일과 비밀번호를 입력해주세요.'); return }
     setIsLoading(true); setErrorMsg(null)
-    const { error } = await signIn(normalizedEmail, password)
-    setIsLoading(false)
-    if (error) {
-      setErrorMsg(error.includes('본인 인증') ? error : '이메일 또는 비밀번호가 올바르지 않습니다.')
-      return
-    }
-    if (!profile?.agreed_to_guidelines) {
-      navigate('/guidelines')
-    } else {
-      navigate('/home')
+    try {
+      const { error } = await signIn(normalizedEmail, password)
+      if (error) {
+        setErrorMsg(error.includes('본인 인증') ? error : '이메일 또는 비밀번호가 올바르지 않습니다.')
+        return
+      }
+      navigate(profile?.agreed_to_guidelines ? '/home' : '/guidelines')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -258,27 +260,30 @@ export default function LoginPage() {
     if (password !== confirmPw) { setErrorMsg('비밀번호와 비밀번호 확인이 일치하지 않습니다.'); return }
 
     setIsLoading(true)
-    const { error, needsConfirmation } = await signUp({
-      email: normalizedEmail,
-      password,
-      name: normalizeText(name, 40) || undefined,
-      grade: grade ?? undefined,
-      classNum: classNum ? Number(classNum) : undefined,
-    })
-    setIsLoading(false)
+    try {
+      const { error, needsConfirmation } = await signUp({
+        email: normalizedEmail,
+        password,
+        name: normalizeText(name, 40) || undefined,
+        grade: grade ?? undefined,
+        classNum: classNum ? Number(classNum) : undefined,
+      })
 
-    if (error) {
-      if (error.includes('already registered') || error.includes('already been registered')) {
-        setErrorMsg('이미 가입된 이메일입니다. 로그인해주세요.')
-      } else {
-        setErrorMsg(error)
+      if (error) {
+        if (error.includes('already registered') || error.includes('already been registered')) {
+          setErrorMsg('이미 가입된 이메일입니다. 로그인해주세요.')
+        } else {
+          setErrorMsg(error)
+        }
+        return
       }
-      return
-    }
 
-    if (needsConfirmation) {
-      setSuccessMsg('본인 인증 메일을 보냈습니다. 학교 이메일함에서 인증 링크를 클릭한 뒤 로그인해주세요.')
-      return
+      if (needsConfirmation) {
+        setSuccessMsg('본인 인증 메일을 보냈습니다. 학교 이메일함에서 인증 링크를 클릭한 뒤 로그인해주세요.')
+        return
+      }
+    } finally {
+      setIsLoading(false)
     }
 
     setSuccessMsg('본인 인증 메일을 보냈습니다. 학교 이메일함에서 인증 링크를 클릭한 뒤 로그인해주세요.')

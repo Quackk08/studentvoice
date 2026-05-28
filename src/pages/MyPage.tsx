@@ -95,19 +95,22 @@ export default function MyPage() {
     }
     setProfileSaving(true)
     setProfileStatus(null)
-    const { error } = await supabase.from('profiles').update({
-      name: editName.trim(),
-      ...(editGrade !== '' ? { grade: Number(editGrade) } : {}),
-      ...(editClass !== '' ? { class: classVal } : {}),
-    }).eq('id', user.id)
-    if (error) {
-      setProfileStatus('저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
-    } else {
-      await refreshProfile()
-      setProfileEditing(false)
-      setProfileStatus('✓ 프로필이 업데이트되었습니다.')
+    try {
+      const { error } = await supabase.from('profiles').update({
+        name: editName.trim(),
+        ...(editGrade !== '' ? { grade: Number(editGrade) } : {}),
+        ...(editClass !== '' ? { class: classVal } : {}),
+      }).eq('id', user.id)
+      if (error) {
+        setProfileStatus('저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+      } else {
+        await refreshProfile()
+        setProfileEditing(false)
+        setProfileStatus('✓ 프로필이 업데이트되었습니다.')
+      }
+    } finally {
+      setProfileSaving(false)
     }
-    setProfileSaving(false)
   }
 
   // Password change state
