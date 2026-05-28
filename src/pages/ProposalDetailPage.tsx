@@ -802,6 +802,13 @@ export default function ProposalDetailPage() {
                   >
                     블라인드 처리
                   </Btn>
+                  <Btn
+                    variant="outline" size="sm" full
+                    style={{ color: COLORS.warn, borderColor: '#F2D6C2', marginTop: 4 }}
+                    onClick={() => setDeleteConfirm(true)}
+                  >
+                    안건 삭제
+                  </Btn>
                 </div>
               </div>
             )}
