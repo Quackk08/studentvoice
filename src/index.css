@@ -43,7 +43,7 @@
   display: none;
 }
 
-@media (orientation: portrait) and (max-width: 1024px) {
+@media (orientation: portrait) and (max-width: 1024px) and (pointer: coarse) {
   .portrait-overlay {
     display: flex;
     position: fixed;
