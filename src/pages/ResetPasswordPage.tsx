@@ -6,6 +6,32 @@ import MicMark from '../components/shared/MicMark'
 import Btn from '../components/shared/Btn'
 import { COLORS } from '../tokens/tokens'
 
+// ── 공통 레이아웃 래퍼 — 컴포넌트 외부에 선언해야 렌더마다 재생성되지 않음
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        background: COLORS.bg, padding: 24,
+        fontFamily: "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif",
+        color: COLORS.ink, letterSpacing: '-0.01em',
+      }}
+    >
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
+          <MicMark size={24} color={COLORS.ink} />
+          <div style={{ lineHeight: 1.1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>학생의 목소리</div>
+            <div style={{ fontSize: 11, color: COLORS.inkSub, marginTop: 1 }}>대전대신고등학교</div>
+          </div>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 function EyeToggle({ show, onToggle }: { show: boolean; onToggle: () => void }) {
   return (
     <button
@@ -81,30 +107,6 @@ export default function ResetPasswordPage() {
     setDone(true)
     setTimeout(() => navigate('/login'), 3000)
   }
-
-  // ── 공통 레이아웃 래퍼
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <div
-      style={{
-        minHeight: '100vh', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        background: COLORS.bg, padding: 24,
-        fontFamily: "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif",
-        color: COLORS.ink, letterSpacing: '-0.01em',
-      }}
-    >
-      <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
-          <MicMark size={24} color={COLORS.ink} />
-          <div style={{ lineHeight: 1.1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>학생의 목소리</div>
-            <div style={{ fontSize: 11, color: COLORS.inkSub, marginTop: 1 }}>대전대신고등학교</div>
-          </div>
-        </div>
-        {children}
-      </div>
-    </div>
-  )
 
   // ── 로딩 중
   if (!sessionChecked) {
