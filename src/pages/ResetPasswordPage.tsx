@@ -72,21 +72,35 @@ export default function ResetPasswordPage() {
   const [sessionChecked, setSessionChecked] = useState(false)
 
   useEffect(() => {
-    // PASSWORD_RECOVERY 이벤트 또는 기존 세션 확인
+    // URL 해시에 recovery 토큰이 있는지 확인
+    const hasRecoveryHash = window.location.hash.includes('access_token')
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // 타임아웃 취소 — onAuthStateChange가 먼저 응답함
+      if (fallbackTimer) clearTimeout(fallbackTimer)
       if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
         setSessionReady(true)
-        setSessionChecked(true)
       }
-    })
-
-    // 이미 세션이 있는 경우 (새로고침 등)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setSessionReady(true)
       setSessionChecked(true)
     })
 
-    return () => subscription.unsubscribe()
+    if (!hasRecoveryHash) {
+      // 해시 없음 → 기존 세션 즉시 확인 (새로고침 등)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) setSessionReady(true)
+        setSessionChecked(true)
+      })
+    } else {
+      // 해시 있음 → Supabase가 비동기로 토큰 교환 중이므로 getSession() 호출 금지.
+      // onAuthStateChange를 기다리고, 5초 내 응답 없으면 만료로 처리.
+      fallbackTimer = setTimeout(() => setSessionChecked(true), 5000)
+    }
+
+    return () => {
+      if (fallbackTimer) clearTimeout(fallbackTimer)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const handleReset = async () => {
