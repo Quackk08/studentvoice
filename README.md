@@ -3,7 +3,6 @@
 <p align="center">
 	<a href="https://github.com/Quackk08/studentvoice/releases"><img src="https://img.shields.io/badge/version-v1.4--stable-blue?style=flat-square" /></a>
 	<a href="https://github.com/Quackk08/studentvoice/releases"><img src="https://img.shields.io/badge/deployment-2nd%20release-success?style=flat-square" /></a>
-	<a href="https://github.com/Quackk08/studentvoice/graphs/contributors"><img src="https://img.shields.io/github/contributors/Quackk08/studentvoice?style=flat-square" /></a>
 	<a href="https://github.com/Quackk08/studentvoice/issues"><img src="https://img.shields.io/github/issues-raw/Quackk08/studentvoice.svg?style=flat-square&label=issues" /></a>
 	<a href="https://github.com/Quackk08/studentvoice/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" /></a>
 </p>
