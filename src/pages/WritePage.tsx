@@ -20,20 +20,23 @@ export default function WritePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const handleSubmit = async () => {
+    const trimmedTitle = title.trim()
+    const trimmedBody = body.trim()
+
     if (!user) { navigate('/login'); return }
-    if (title.length < 5) { setErrorMsg('제목을 5자 이상 입력해주세요.'); return }
-    if (body.length < 50) { setErrorMsg('본문을 50자 이상 입력해주세요.'); return }
+    if (trimmedTitle.length < 5) { setErrorMsg('제목을 5자 이상 입력해주세요.'); return }
+    if (trimmedBody.length < 50) { setErrorMsg('본문을 50자 이상 입력해주세요.'); return }
     setSubmitting(true)
     setErrorMsg(null)
     try {
       const { data, error } = await submitProposal({
         authorId: user.id,
         category: CATS[selectedCat] as ProposalCategory,
-        title,
-        body,
+        title: trimmedTitle,
+        body: trimmedBody,
         isAnonymous: anonymous,
       })
-      if (error) { setErrorMsg('제출 중 오류가 발생했습니다. 다시 시도해주세요.'); return }
+      if (error) { setErrorMsg(error); return }
       navigate(`/proposals/${data!.id}`)
     } finally {
       setSubmitting(false)
@@ -147,7 +150,10 @@ export default function WritePage() {
               </div>
               <input
                 value={title}
-                onChange={e => setTitle(e.target.value)}
+                onChange={e => {
+                  setTitle(e.target.value)
+                  if (errorMsg) setErrorMsg(null)
+                }}
                 maxLength={60}
                 style={{
                   width: '100%',
@@ -184,7 +190,10 @@ export default function WritePage() {
 
               <textarea
                 value={body}
-                onChange={e => setBody(e.target.value)}
+                onChange={e => {
+                  setBody(e.target.value)
+                  if (errorMsg) setErrorMsg(null)
+                }}
                 maxLength={2000}
                 style={{
                   width: '100%',
@@ -259,8 +268,7 @@ export default function WritePage() {
                   variant="brand"
                   size="md"
                   onClick={handleSubmit}
-                  disabled={title.length < 5 || body.length < 50 || submitting}
-                  style={{ opacity: submitting ? 0.7 : 1 }}
+                  disabled={submitting}
                 >
                   {submitting ? '제출 중...' : '작성 완료'}
                 </Btn>
