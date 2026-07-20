@@ -51,6 +51,17 @@ function isMissingProposalFeed(error: ProposalQueryResult['error']) {
     ))
 }
 
+function isMissingCreateProposalRpc(error: ProposalQueryResult['error']) {
+  if (!error) return false
+  const detail = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
+  return detail.includes('pgrst202')
+    || (detail.includes('create_proposal') && (
+      detail.includes('schema cache')
+      || detail.includes('could not find')
+      || detail.includes('not exist')
+    ))
+}
+
 function normalizeProposalRow(row: Record<string, unknown>): Proposal {
   const relatedProfile = Array.isArray(row.profiles)
     ? row.profiles[0] as Record<string, unknown> | undefined
@@ -484,13 +495,34 @@ export async function submitProposal(params: {
   const validated = validateProposalInput(params)
   if (validated.error || !validated.value) return { data: null, error: validated.error ?? 'Invalid request.' }
 
-  const { data: newId, error } = await supabase.rpc('create_proposal', {
+  const { data: rpcNewId, error: rpcError } = await supabase.rpc('create_proposal', {
     p_category: validated.value.category,
     p_title: validated.value.title,
     p_body: validated.value.body,
     p_is_anonymous: params.isAnonymous,
   })
-  if (error || !newId) return { data: null, error: error?.message ?? '안건을 등록하지 못했습니다.' }
+
+  let newId = rpcNewId as string | null
+  if (isMissingCreateProposalRpc(rpcError)) {
+    const { data: legacyProposal, error: legacyError } = await supabase
+      .from('proposals')
+      .insert({
+        author_id: params.authorId,
+        category: validated.value.category,
+        title: validated.value.title,
+        body: validated.value.body,
+        is_anonymous: params.isAnonymous,
+      })
+      .select('id')
+      .single()
+
+    if (legacyError || !legacyProposal?.id) {
+      return { data: null, error: legacyError?.message ?? '안건을 등록하지 못했습니다.' }
+    }
+    newId = legacyProposal.id
+  } else if (rpcError || !newId) {
+    return { data: null, error: rpcError?.message ?? '안건을 등록하지 못했습니다.' }
+  }
 
   const { data, error: fetchError } = await queryProposalSource((source, columns) => supabase
     .from(source)
