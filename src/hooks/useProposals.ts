@@ -31,6 +31,57 @@ export interface UserNotification {
 }
 
 const DATA_CHANGED_EVENT = 'studentvoice:data-changed'
+const LEGACY_PROPOSAL_SELECT = '*, profiles(id, name, email, grade, class), official_replies(*)'
+
+type ProposalQueryResult = {
+  data: unknown
+  error: { code?: string; message?: string } | null
+  count?: number | null
+}
+
+function isMissingProposalFeed(error: ProposalQueryResult['error']) {
+  if (!error) return false
+  const detail = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
+  return detail.includes('pgrst205')
+    || detail.includes('42p01')
+    || (detail.includes('proposal_feed') && (
+      detail.includes('schema cache')
+      || detail.includes('not find')
+      || detail.includes('not exist')
+    ))
+}
+
+function normalizeProposalRow(row: Record<string, unknown>): Proposal {
+  const relatedProfile = Array.isArray(row.profiles)
+    ? row.profiles[0] as Record<string, unknown> | undefined
+    : row.profiles as Record<string, unknown> | null | undefined
+
+  return {
+    ...row,
+    author_name: row.author_name ?? relatedProfile?.name ?? null,
+    author_grade: row.author_grade ?? relatedProfile?.grade ?? null,
+    author_class: row.author_class ?? relatedProfile?.class ?? null,
+    author_email: row.author_email ?? relatedProfile?.email ?? null,
+    official_replies: row.official_replies ?? [],
+  } as Proposal
+}
+
+function normalizeProposalPayload(data: unknown) {
+  if (Array.isArray(data)) return data.map(row => normalizeProposalRow(row as Record<string, unknown>))
+  if (data && typeof data === 'object') return normalizeProposalRow(data as Record<string, unknown>)
+  return data
+}
+
+async function queryProposalSource(
+  build: (source: 'proposal_feed' | 'proposals', columns: string) => PromiseLike<ProposalQueryResult>,
+  legacyColumns = LEGACY_PROPOSAL_SELECT,
+) {
+  let result = await build('proposal_feed', '*')
+  if (isMissingProposalFeed(result.error)) {
+    result = await build('proposals', legacyColumns)
+  }
+  return { ...result, data: normalizeProposalPayload(result.data) }
+}
 
 export function announceDataChanged() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(DATA_CHANGED_EVENT))
@@ -103,9 +154,9 @@ export function useHomeStats() {
     }
 
     const [a, s, d] = await Promise.all([
-      supabase.from('proposal_feed').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('proposal_feed').select('*', { count: 'exact', head: true }).in('status', SELECTED_PROPOSAL_STATUSES),
-      supabase.from('proposal_feed').select('*', { count: 'exact', head: true }).eq('status', 'done').gte('updated_at', monthStart),
+      queryProposalSource((source, columns) => supabase.from(source).select(columns, { count: 'exact', head: true }).eq('status', 'active'), 'id'),
+      queryProposalSource((source, columns) => supabase.from(source).select(columns, { count: 'exact', head: true }).in('status', SELECTED_PROPOSAL_STATUSES), 'id'),
+      queryProposalSource((source, columns) => supabase.from(source).select(columns, { count: 'exact', head: true }).eq('status', 'done').gte('updated_at', monthStart), 'id'),
     ])
 
     setStats({
@@ -133,14 +184,14 @@ export function usePopularProposals() {
 
   const fetch = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('proposal_feed')
-      .select('*')
+    const { data, error } = await queryProposalSource((source, columns) => supabase
+      .from(source)
+      .select(columns)
       .eq('status', 'active')
       .gte('vote_count', 20)
       .order('vote_count', { ascending: false })
-      .limit(10)
-    if (error) setError(error.message)
+      .limit(10))
+    if (error) setError(error.message ?? '안건을 불러오지 못했습니다.')
     else { setData((data ?? []) as Proposal[]); setError(null) }
     setLoading(false)
   }, [])
@@ -160,13 +211,13 @@ export function useSelectedProposals(limit = 5) {
 
   const fetch = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('proposal_feed')
-      .select('*')
+    const { data } = await queryProposalSource((source, columns) => supabase
+      .from(source)
+      .select(columns)
       .in('status', SELECTED_PROPOSAL_STATUSES)
       .gte('vote_count', 30)
       .order('vote_count', { ascending: false })
-      .limit(limit)
+      .limit(limit))
     setData((data ?? []) as Proposal[])
     setLoading(false)
   }, [limit])
@@ -188,14 +239,16 @@ export function useArchive(filter: 'all' | 'done' | 'wip' | 'rejected' = 'all') 
   useEffect(() => {
     const fetch = () => {
       setLoading(true)
-      let query = supabase.from('proposal_feed').select('*')
-        .in('status', SELECTED_PROPOSAL_STATUSES)
-        .gte('vote_count', 30)
-        .order('created_at', { ascending: false })
-      if (filter === 'done') query = query.eq('status', 'done')
-      else if (filter === 'wip') query = query.in('status', ['selected', 'discussing'])
-      else if (filter === 'rejected') query = query.eq('status', 'rejected')
-      query.then(({ data }) => {
+      queryProposalSource((source, columns) => {
+        let query = supabase.from(source).select(columns)
+          .in('status', SELECTED_PROPOSAL_STATUSES)
+          .gte('vote_count', 30)
+          .order('created_at', { ascending: false })
+        if (filter === 'done') query = query.eq('status', 'done')
+        else if (filter === 'wip') query = query.in('status', ['selected', 'discussing'])
+        else if (filter === 'rejected') query = query.eq('status', 'rejected')
+        return query
+      }).then(({ data }) => {
         const items = (data ?? []) as Proposal[]
         setData(items)
         if (filter === 'all') setTotal(items.length)
@@ -221,12 +274,12 @@ export function useProposal(id: string) {
       setLoading(false)
       return
     }
-    const { data, error } = await supabase
-      .from('proposal_feed')
-      .select('*')
+    const { data, error } = await queryProposalSource((source, columns) => supabase
+      .from(source)
+      .select(columns)
       .eq('id', id)
-      .single()
-    if (error) setError(error.message)
+      .single())
+    if (error) setError(error.message ?? '안건을 불러오지 못했습니다.')
     else setData(data as Proposal)
     setLoading(false)
   }, [id])
@@ -259,17 +312,26 @@ export function useAllProposals(
 ) {
   const [data, setData] = useState<Proposal[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetch = () => {
       setLoading(true)
-      let query = supabase.from('proposal_feed').select('*').eq('status', 'active')
-      if (category !== 'all') query = query.eq('category', category)
-      if (sort === 'votes') query = query.order('vote_count', { ascending: false })
-      else if (sort === 'comments') query = query.order('comment_count', { ascending: false })
-      else query = query.order('created_at', { ascending: false })
-      query.then(({ data }) => {
-        setData((data ?? []) as Proposal[])
+      queryProposalSource((source, columns) => {
+        let query = supabase.from(source).select(columns).eq('status', 'active')
+        if (category !== 'all') query = query.eq('category', category)
+        if (sort === 'votes') query = query.order('vote_count', { ascending: false })
+        else if (sort === 'comments') query = query.order('comment_count', { ascending: false })
+        else query = query.order('created_at', { ascending: false })
+        return query
+      }).then(({ data, error }) => {
+        if (error) {
+          setData([])
+          setError(error.message ?? '진행 중인 안건을 불러오지 못했습니다.')
+        } else {
+          setData((data ?? []) as Proposal[])
+          setError(null)
+        }
         setLoading(false)
       })
     }
@@ -277,7 +339,7 @@ export function useAllProposals(
     return subscribeToDataChanges(fetch)
   }, [category, sort])
 
-  return { data, loading }
+  return { data, loading, error }
 }
 
 // ── My proposals ──
@@ -288,8 +350,8 @@ export function useMyProposals(userId: string | undefined) {
   useEffect(() => {
     if (!userId) { setLoading(false); return }
     const fetch = () => {
-      supabase.from('proposal_feed').select('*').eq('author_id', userId)
-        .order('created_at', { ascending: false })
+      queryProposalSource((source, columns) => supabase.from(source).select(columns).eq('author_id', userId)
+        .order('created_at', { ascending: false }))
         .then(({ data }) => {
           setData((data ?? []) as Proposal[])
           setLoading(false)
@@ -430,12 +492,12 @@ export async function submitProposal(params: {
   })
   if (error || !newId) return { data: null, error: error?.message ?? '안건을 등록하지 못했습니다.' }
 
-  const { data, error: fetchError } = await supabase
-    .from('proposal_feed')
-    .select('*')
+  const { data, error: fetchError } = await queryProposalSource((source, columns) => supabase
+    .from(source)
+    .select(columns)
     .eq('id', newId)
-    .single()
-  if (fetchError) return { data: null, error: fetchError.message }
+    .single())
+  if (fetchError) return { data: null, error: fetchError.message ?? '등록된 안건을 다시 불러오지 못했습니다.' }
   announceDataChanged()
   return { data: data as Proposal, error: null }
 }
@@ -457,12 +519,12 @@ export function useAdminQueue() {
 
   const refetch = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('proposal_feed')
-      .select('*')
+    const { data } = await queryProposalSource((source, columns) => supabase
+      .from(source)
+      .select(columns)
       .in('status', SELECTED_PROPOSAL_STATUSES)
       .gte('vote_count', 30)
-      .order('vote_count', { ascending: false })
+      .order('vote_count', { ascending: false }))
     setData((data ?? []) as Proposal[])
     setLoading(false)
   }, [])
@@ -503,12 +565,12 @@ export function useReportedProposals() {
     }
 
     const ids = Object.keys(grouped)
-    const { data: proposals } = await supabase
-      .from('proposal_feed')
-      .select('*')
-      .in('id', ids)
+    const { data: proposals } = await queryProposalSource((source, columns) => supabase
+      .from(source)
+      .select(columns)
+      .in('id', ids))
 
-    const result = (proposals ?? []).map(p => ({
+    const result = ((proposals ?? []) as Proposal[]).map(p => ({
       proposal: p as Proposal,
       reportCount: grouped[p.id]?.count ?? 0,
       reason: grouped[p.id]?.reason ?? '',

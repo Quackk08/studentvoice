@@ -187,7 +187,7 @@ export default function ProposalsPage() {
   const [activeSort, setActiveSort] = useState<ProposalSort>('votes')
   const [search, setSearch] = useState('')
 
-  const { data: rawData, loading } = useAllProposals(activeCategory, activeSort)
+  const { data: rawData, loading, error } = useAllProposals(activeCategory, activeSort)
 
   // 클라이언트 사이드 검색 필터
   const data: Proposal[] = search.trim()
@@ -345,6 +345,17 @@ export default function ProposalsPage() {
           >
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+            ) : error ? (
+              <div
+                role="alert"
+                style={{
+                  gridColumn: '1 / -1', padding: '32px 24px', borderRadius: 14,
+                  border: `1px solid ${COLORS.warn}`, background: COLORS.warnSoft,
+                  color: COLORS.warn, textAlign: 'center', fontSize: 13,
+                }}
+              >
+                {error} 페이지를 새로고침하거나 잠시 후 다시 시도해주세요.
+              </div>
             ) : data.length === 0 ? (
               <EmptyState category={search ? '검색' : activeCategory} />
             ) : (
@@ -359,7 +370,7 @@ export default function ProposalsPage() {
           </div>
 
           {/* 검색 결과 없음 메시지 */}
-          {!loading && search && data.length === 0 && (
+          {!loading && !error && search && data.length === 0 && (
             <div style={{ textAlign: 'center', marginTop: 40, color: COLORS.inkMuted, fontSize: 13 }}>
               '{search}'에 대한 결과가 없습니다.{' '}
               <button
