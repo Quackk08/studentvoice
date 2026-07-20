@@ -6,14 +6,14 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useNoticeStats } from '../../hooks/useProposals'
 import { COLORS } from '../../tokens/tokens'
 
-type ActiveTab = 'home' | 'proposals' | 'archive' | 'write'
+type ActiveTab = 'home' | 'proposals' | 'archive' | 'write' | 'admin'
 
 interface AppHeaderProps {
   active?: ActiveTab
   isAdmin?: boolean
 }
 
-const NAV_TABS: { id: ActiveTab; label: string; to: string }[] = [
+const NAV_TABS: { id: Exclude<ActiveTab, 'admin'>; label: string; to: string }[] = [
   { id: 'home',      label: '홈',           to: '/home' },
   { id: 'proposals', label: '전체 안건',     to: '/proposals' },
   { id: 'archive',   label: '답변 · 아카이브', to: '/archive' },
@@ -172,12 +172,13 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
               to="/admin"
               style={{
                 fontSize: 12,
-                color: COLORS.brand,
+                color: active === 'admin' ? '#fff' : COLORS.brand,
                 fontWeight: 600,
                 textDecoration: 'none',
                 border: `1px solid ${COLORS.brand}`,
                 borderRadius: 8,
                 padding: '6px 12px',
+                background: active === 'admin' ? COLORS.brand : COLORS.surface,
               }}
             >
               관리자

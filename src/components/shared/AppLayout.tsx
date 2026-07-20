@@ -1,7 +1,7 @@
 import AppHeader from './AppHeader'
 import { COLORS } from '../../tokens/tokens'
 
-type ActiveTab = 'home' | 'proposals' | 'archive' | 'write'
+type ActiveTab = 'home' | 'proposals' | 'archive' | 'write' | 'admin'
 
 interface AppLayoutProps {
   children: React.ReactNode

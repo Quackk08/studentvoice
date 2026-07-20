@@ -1,5 +1,8 @@
 export type ProposalStatus = 'active' | 'selected' | 'discussing' | 'done' | 'rejected' | 'blinded'
 export type ProposalCategory = '#시설' | '#급식' | '#교칙' | '#학사' | '#수업' | '#복지' | '#기타'
+export type ModerationStatus = 'visible' | 'blinded' | 'trashed'
+export type AdminProposalScope = 'all' | 'near' | 'open' | 'completed' | 'blinded' | 'trashed'
+export type AdminModerationAction = 'blind' | 'unblind' | 'trash' | 'restore' | 'delete'
 
 export interface Profile {
   id: string
@@ -89,4 +92,54 @@ export interface NotificationSettings {
   on_reply: boolean
   on_voted: boolean
   updated_at: string
+}
+
+export interface AdminDashboardStats {
+  profiles: number
+  active: number
+  nearThreshold: number
+  selected: number
+  discussing: number
+  doneThisMonth: number
+  reportedProposals: number
+  totalReports: number
+  blinded: number
+  trashed: number
+  lastActivityAt: string | null
+  schemaVersion: string
+}
+
+export interface AdminProposal extends Proposal {
+  moderation_status: ModerationStatus
+  moderation_reason: string | null
+  report_count: number
+  official_reply_content: string | null
+  official_reply_signed_by: string | null
+  latest_public_message: string | null
+  latest_internal_note: string | null
+}
+
+export interface AdminReportReason {
+  id: string | null
+  reason: string
+  created_at: string | null
+}
+
+export interface AdminReportItem {
+  proposal: AdminProposal
+  reportCount: number
+  latestAt: string
+  reasons: AdminReportReason[]
+}
+
+export interface AdminActivityItem {
+  id: string
+  adminId: string | null
+  adminName: string | null
+  adminEmail: string | null
+  proposalId: string | null
+  proposalTitle: string | null
+  action: string
+  details: Record<string, unknown>
+  createdAt: string
 }
