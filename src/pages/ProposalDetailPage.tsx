@@ -9,11 +9,12 @@ import {
   useProposal, voteProposal, unvoteProposal, checkUserVoted,
   saveProposal, unsaveProposal, checkUserSaved, getSavesCount,
   useComments, addComment, deleteComment,
-  reportProposal, deleteProposal, updateProposal,
+  reportProposal, deleteProposal, adminDeleteProposal, updateProposal,
   upsertOfficialReply, adminUpdateStatus,
 } from '../hooks/useProposals'
 import { COLORS } from '../tokens/tokens'
-import type { ProposalCategory } from '../types/database'
+import { PROPOSAL_STATUS_LABELS, PROPOSAL_STATUS_TONES } from '../lib/proposalStatus'
+import type { ProposalCategory, ProposalStatus } from '../types/database'
 
 const CATS: ProposalCategory[] = ['#시설', '#급식', '#교칙', '#학사', '#수업', '#복지', '#기타']
 
@@ -52,8 +53,15 @@ function Modal({
   onClose: () => void
   children: React.ReactNode
 }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
   return (
     <div
+      role="presentation"
       style={{
         position: 'fixed', inset: 0, zIndex: 999,
         background: 'rgba(0,0,0,0.45)',
@@ -62,6 +70,9 @@ function Modal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         onClick={e => e.stopPropagation()}
         style={{
           background: COLORS.surface, borderRadius: 20,
@@ -82,10 +93,11 @@ export default function ProposalDetailPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { user, profile } = useAuth()
-  const { data: proposal, loading, refetch } = useProposal(id ?? '')
+  const { data: proposal, loading, error: proposalError, refetch } = useProposal(id ?? '')
   const { data: comments, refetch: refetchComments } = useComments(id ?? '')
 
   const IS_ADMIN = profile?.is_admin ?? false
+  const [actionError, setActionError] = useState<string | null>(null)
 
   // ── Vote / Save ──────────────────────────────────────────
   const [voted, setVoted] = useState(false)
@@ -107,14 +119,13 @@ export default function ProposalDetailPage() {
   const handleVote = async () => {
     if (!user || !id) { navigate('/login'); return }
     setVoteLoading(true)
+    setActionError(null)
     try {
-      if (voted) {
-        await unvoteProposal(id, user.id)
-        setVoted(false)
-      } else {
-        await voteProposal(id, user.id)
-        setVoted(true)
-      }
+      const result = voted
+        ? await unvoteProposal(id, user.id)
+        : await voteProposal(id, user.id)
+      if (result.error) { setActionError(`추천을 처리하지 못했습니다: ${result.error}`); return }
+      setVoted(!voted)
       await refetch()
     } finally {
       setVoteLoading(false)
@@ -123,15 +134,13 @@ export default function ProposalDetailPage() {
 
   const handleSave = async () => {
     if (!user || !id) { navigate('/login'); return }
-    if (saved) {
-      await unsaveProposal(id, user.id)
-      setSaved(false)
-      setSavesCount(c => Math.max(0, c - 1))
-    } else {
-      await saveProposal(id, user.id)
-      setSaved(true)
-      setSavesCount(c => c + 1)
-    }
+    setActionError(null)
+    const result = saved
+      ? await unsaveProposal(id, user.id)
+      : await saveProposal(id, user.id)
+    if (result.error) { setActionError(`저장을 처리하지 못했습니다: ${result.error}`); return }
+    setSaved(!saved)
+    setSavesCount(c => saved ? Math.max(0, c - 1) : c + 1)
   }
 
   // ── Comments ──────────────────────────────────────────────
@@ -142,18 +151,22 @@ export default function ProposalDetailPage() {
   const handleAddComment = async () => {
     if (!user || !id || !commentText.trim()) return
     setCommentLoading(true)
+    setActionError(null)
     try {
-      await addComment(id, user.id, commentText.trim(), commentAnon)
+      const { error } = await addComment(id, user.id, commentText.trim(), commentAnon)
+      if (error) { setActionError(`댓글을 등록하지 못했습니다: ${error}`); return }
       setCommentText('')
-      await refetchComments()
+      await Promise.all([refetchComments(), refetch()])
     } finally {
       setCommentLoading(false)
     }
   }
 
   const handleDeleteComment = async (commentId: string) => {
-    await deleteComment(commentId)
-    refetchComments()
+    setActionError(null)
+    const { error } = await deleteComment(commentId)
+    if (error) { setActionError(`댓글을 삭제하지 못했습니다: ${error}`); return }
+    await Promise.all([refetchComments(), refetch()])
   }
 
   // ── Report ───────────────────────────────────────────────
@@ -161,10 +174,12 @@ export default function ProposalDetailPage() {
   const [reportReason, setReportReason] = useState('')
   const [reportLoading, setReportLoading] = useState(false)
   const [reportDone, setReportDone] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   const handleReport = async () => {
     if (!user || !id) return
     setReportLoading(true)
+    setReportError(null)
     const { error } = await reportProposal(id, user.id, reportReason)
     setReportLoading(false)
     if (error?.includes('duplicate')) {
@@ -172,6 +187,7 @@ export default function ProposalDetailPage() {
       setReportOpen(false)
       return
     }
+    if (error) { setReportError(`신고하지 못했습니다: ${error}`); return }
     setReportDone(true)
     setReportOpen(false)
     setReportReason('')
@@ -214,12 +230,15 @@ export default function ProposalDetailPage() {
   // ── Delete ───────────────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const handleDelete = async () => {
     if (!id) return
     setDeleteLoading(true)
+    setDeleteError(null)
     try {
-      await deleteProposal(id)
+      const { error } = IS_ADMIN ? await adminDeleteProposal(id) : await deleteProposal(id)
+      if (error) { setDeleteError(`삭제하지 못했습니다: ${error}`); return }
       navigate('/home')
     } finally {
       setDeleteLoading(false)
@@ -228,10 +247,15 @@ export default function ProposalDetailPage() {
 
   // ── Admin: status change ─────────────────────────────────
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
+  const [statusLoading, setStatusLoading] = useState(false)
 
   const handleAdminStatus = async (newStatus: string) => {
     if (!id) return
-    await adminUpdateStatus(id, newStatus)
+    setStatusLoading(true)
+    setActionError(null)
+    const { error } = await adminUpdateStatus(id, newStatus)
+    setStatusLoading(false)
+    if (error) { setActionError(`상태를 변경하지 못했습니다: ${error}`); return }
     await refetch()
     setStatusMenuOpen(false)
   }
@@ -275,9 +299,16 @@ export default function ProposalDetailPage() {
   const canEdit      = isMyProposal && proposal?.status === 'active'
   const existingReply = proposal?.official_replies?.[0]
 
-  const STATUS_LABELS: Record<string, string> = {
-    active: '진행 중', selected: '선정됨', done: '반영 완료',
-    rejected: '반려', blinded: '블라인드',
+  if (!loading && !proposal) {
+    return (
+      <AppLayout active="proposals" isAdmin={IS_ADMIN}>
+        <section className="responsive-section" style={{ padding: '80px 48px', textAlign: 'center' }}>
+          <h1 style={{ fontSize: 28, margin: 0 }}>안건을 찾을 수 없습니다</h1>
+          <p style={{ color: COLORS.inkSub }}>{proposalError ? '안건을 불러오는 중 오류가 발생했습니다.' : '삭제되었거나 접근할 수 없는 안건입니다.'}</p>
+          <Btn variant="primary" size="md" onClick={() => navigate('/proposals')}>전체 안건으로</Btn>
+        </section>
+      </AppLayout>
+    )
   }
 
   return (
@@ -289,12 +320,13 @@ export default function ProposalDetailPage() {
       }
       isAdmin={IS_ADMIN}
     >
-      <section style={{ padding: '40px 48px 80px', background: COLORS.bg }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 32 }}>
+      <section className="responsive-section" style={{ padding: '40px 48px 80px', background: COLORS.bg }}>
+        <div className="responsive-grid" style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 32 }}>
 
           {/* ── Main content ── */}
           <div>
             {loading && <div style={{ fontSize: 14, color: COLORS.inkMuted }}>불러오는 중…</div>}
+            {actionError && <div role="alert" style={{ padding: '11px 13px', marginBottom: 16, borderRadius: 9, background: COLORS.warnSoft, color: COLORS.warn, fontSize: 12 }}>{actionError}</div>}
 
             {/* Breadcrumb — 안건 상태·추천 수에 따라 상위 경로 결정 */}
             {(() => {
@@ -331,9 +363,11 @@ export default function ProposalDetailPage() {
             {editMode ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                 {CATS.map(c => (
-                  <span
+                  <button
+                    type="button"
                     key={c}
                     onClick={() => setEditCat(c)}
+                    aria-pressed={c === editCat}
                     style={{
                       padding: '6px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600,
                       background: c === editCat ? COLORS.ink : COLORS.surface,
@@ -343,7 +377,7 @@ export default function ProposalDetailPage() {
                     }}
                   >
                     {c}
-                  </span>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -353,12 +387,8 @@ export default function ProposalDetailPage() {
                   <Badge tone="fire">🔥 인기 급상승</Badge>
                 )}
                 {proposal?.status && proposal.status !== 'active' && (
-                  <Badge tone={
-                    proposal.status === 'selected' ? 'brand' :
-                    proposal.status === 'done' ? 'brandSoft' :
-                    proposal.status === 'rejected' ? 'warn' : 'default'
-                  }>
-                    {STATUS_LABELS[proposal.status] ?? proposal.status}
+                  <Badge tone={PROPOSAL_STATUS_TONES[proposal.status]}>
+                    {PROPOSAL_STATUS_LABELS[proposal.status]}
                   </Badge>
                 )}
                 <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
@@ -389,6 +419,7 @@ export default function ProposalDetailPage() {
             {/* Author meta */}
             {!editMode && (
               <div
+                className="proposal-author-meta"
                 style={{
                   marginTop: 22, padding: '14px 0',
                   borderTop: `1px solid ${COLORS.lineSoft}`, borderBottom: `1px solid ${COLORS.lineSoft}`,
@@ -401,12 +432,12 @@ export default function ProposalDetailPage() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
                     {proposal?.is_anonymous
-                      ? `익명의 대신인 · ${proposal.profiles?.grade ?? '?'}학년`
-                      : (proposal?.profiles?.grade ? `${proposal.profiles.grade}학년` : '작성자')}
+                      ? `익명의 대신인 · ${proposal.author_grade ?? '?'}학년`
+                      : (proposal?.author_name ?? (proposal?.author_grade ? `${proposal.author_grade}학년 학생` : '작성자'))}
                   </div>
                   {IS_ADMIN && proposal && (
                     <div style={{ fontSize: 11, color: COLORS.warn, marginTop: 3, fontWeight: 500 }}>
-                      ⓘ 발의자: {proposal.profiles?.email ?? '(이메일 없음)'} (운영자에게만 표시)
+                      ⓘ 발의자: {proposal.author_email ?? '(이메일 없음)'} (운영자에게만 표시)
                     </div>
                   )}
                 </div>
@@ -450,7 +481,7 @@ export default function ProposalDetailPage() {
 
             {/* Action buttons (only in read mode) */}
             {!editMode && (
-              <div style={{ marginTop: 36, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div className="proposal-actions" style={{ marginTop: 36, display: 'flex', gap: 12, alignItems: 'center' }}>
                 <button
                   onClick={handleVote}
                   disabled={voteLoading || proposal?.status !== 'active'}
@@ -487,7 +518,7 @@ export default function ProposalDetailPage() {
                       color: reportDone ? COLORS.inkMuted : COLORS.warn,
                       borderColor: reportDone ? COLORS.line : '#F2D6C2',
                     }}
-                    onClick={() => !reportDone && setReportOpen(true)}
+                    onClick={() => { if (!reportDone) { setReportError(null); setReportOpen(true) } }}
                     disabled={reportDone}
                   >
                     {reportDone ? '신고 완료' : '신고'}
@@ -533,22 +564,11 @@ export default function ProposalDetailPage() {
                     />
                     <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontSize: 12, color: COLORS.inkSub }}>
-                        <div
-                          onClick={() => setCommentAnon(!commentAnon)}
-                          style={{
-                            width: 30, height: 17, borderRadius: 99,
-                            background: commentAnon ? COLORS.ink : COLORS.line,
-                            position: 'relative', cursor: 'pointer', transition: 'background .15s',
-                          }}
-                        >
-                          <span style={{
-                            position: 'absolute', top: 2,
-                            left: commentAnon ? 15 : 2,
-                            width: 13, height: 13, borderRadius: 99,
-                            background: '#fff', transition: 'left .15s',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
-                          }} />
-                        </div>
+                        <input
+                          type="checkbox"
+                          checked={commentAnon}
+                          onChange={event => setCommentAnon(event.target.checked)}
+                        />
                         익명
                       </label>
                       <Btn
@@ -572,8 +592,8 @@ export default function ProposalDetailPage() {
                     {comments.map(c => {
                       const isOwn = user?.id === c.author_id
                       const authorLabel = c.is_anonymous
-                        ? `익명 · ${c.profiles?.grade ?? '?'}학년`
-                        : (c.profiles?.name ?? '학생')
+                        ? `익명 · ${c.author_grade ?? '?'}학년`
+                        : (c.author_name ?? '학생')
                       return (
                         <div
                           key={c.id}
@@ -761,7 +781,7 @@ export default function ProposalDetailPage() {
                   {/* Status change dropdown */}
                   <div style={{ position: 'relative' }}>
                     <Btn variant="outline" size="sm" full onClick={() => setStatusMenuOpen(o => !o)}>
-                      상태 변경 ({STATUS_LABELS[proposal?.status ?? 'active'] ?? '?'}) ▾
+                      상태 변경 ({PROPOSAL_STATUS_LABELS[proposal?.status ?? 'active']}) ▾
                     </Btn>
                     {statusMenuOpen && (
                       <div
@@ -772,15 +792,11 @@ export default function ProposalDetailPage() {
                           boxShadow: '0 8px 24px -4px rgba(0,0,0,0.15)',
                         }}
                       >
-                        {[
-                          { status: 'active',   label: '진행 중' },
-                          { status: 'selected', label: '선정됨' },
-                          { status: 'done',     label: '반영 완료' },
-                          { status: 'rejected', label: '반려' },
-                        ].map(({ status, label }) => (
+                        {(['active', 'selected', 'discussing', 'done', 'rejected'] as ProposalStatus[]).map(status => (
                           <button
                             key={status}
                             onClick={() => handleAdminStatus(status)}
+                            disabled={statusLoading || proposal?.status === status}
                             style={{
                               display: 'block', width: '100%', padding: '11px 14px',
                               textAlign: 'left', border: 'none', background: proposal?.status === status ? COLORS.surfaceAlt : 'transparent',
@@ -788,7 +804,7 @@ export default function ProposalDetailPage() {
                               color: COLORS.ink, cursor: 'pointer', fontFamily: 'inherit',
                             }}
                           >
-                            {label} {proposal?.status === status ? '✓' : ''}
+                            {PROPOSAL_STATUS_LABELS[status]} {proposal?.status === status ? '✓' : ''}
                           </button>
                         ))}
                       </div>
@@ -798,9 +814,10 @@ export default function ProposalDetailPage() {
                   <Btn
                     variant="outline" size="sm" full
                     style={{ color: COLORS.warn, borderColor: '#F2D6C2' }}
-                    onClick={() => handleAdminStatus('blinded')}
+                    onClick={() => handleAdminStatus(proposal?.status === 'blinded' ? 'active' : 'blinded')}
+                    disabled={statusLoading}
                   >
-                    블라인드 처리
+                    {proposal?.status === 'blinded' ? '블라인드 해제' : '블라인드 처리'}
                   </Btn>
                   <Btn
                     variant="outline" size="sm" full
@@ -904,6 +921,7 @@ export default function ProposalDetailPage() {
               resize: 'none', boxSizing: 'border-box', marginBottom: 16,
             }}
           />
+          {reportError && <div role="alert" style={{ fontSize: 12, color: COLORS.warn, marginBottom: 12 }}>{reportError}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <Btn variant="outline" size="md" onClick={() => setReportOpen(false)}>취소</Btn>
             <Btn
@@ -924,6 +942,7 @@ export default function ProposalDetailPage() {
           <p style={{ fontSize: 13, color: COLORS.inkSub, marginTop: 0, marginBottom: 20, lineHeight: 1.6 }}>
             삭제된 안건은 복구할 수 없습니다. 정말로 삭제하시겠습니까?
           </p>
+          {deleteError && <div role="alert" style={{ fontSize: 12, color: COLORS.warn, marginBottom: 12 }}>{deleteError}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <Btn variant="outline" size="md" onClick={() => setDeleteConfirm(false)}>취소</Btn>
             <Btn

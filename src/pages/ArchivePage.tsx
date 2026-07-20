@@ -3,18 +3,10 @@ import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
 import Btn from '../components/shared/Btn'
+import { useAuth } from '../contexts/AuthContext'
 import { useArchive } from '../hooks/useProposals'
 import { COLORS } from '../tokens/tokens'
-import type { BadgeTone } from '../tokens/tokens'
-import type { Proposal } from '../types/database'
-
-// ── Helpers ──
-function statusInfo(p: Proposal): [string, BadgeTone] {
-  if (p.status === 'done')     return ['반영 완료', 'brandSoft']
-  if (p.status === 'selected') return ['협의 진행 중', 'hold']
-  if (p.status === 'rejected') return ['반려', 'warn']
-  return ['처리 중', 'default']
-}
+import { getProposalStatusLabel, getProposalStatusTone } from '../lib/proposalStatus'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('ko-KR', {
@@ -61,6 +53,7 @@ function EmptyState() {
 
 export default function ArchivePage() {
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState<FilterId>('all')
   const [searchText, setSearchText] = useState('')
 
@@ -71,7 +64,7 @@ export default function ArchivePage() {
   const tabCounts: Record<FilterId, number> = {
     all:  allData.length,
     done: allData.filter(a => a.status === 'done').length,
-    wip:  allData.filter(a => a.status === 'selected').length,
+    wip:  allData.filter(a => a.status === 'selected' || a.status === 'discussing').length,
     hold: allData.filter(a => a.status === 'rejected').length,
   }
 
@@ -79,7 +72,7 @@ export default function ArchivePage() {
   const tabFiltered =
     activeTab === 'all'  ? allData :
     activeTab === 'done' ? allData.filter(a => a.status === 'done') :
-    activeTab === 'wip'  ? allData.filter(a => a.status === 'selected') :
+    activeTab === 'wip'  ? allData.filter(a => a.status === 'selected' || a.status === 'discussing') :
                            allData.filter(a => a.status === 'rejected')
 
   // 검색 필터
@@ -91,9 +84,9 @@ export default function ArchivePage() {
     : tabFiltered
 
   return (
-    <AppLayout active="archive">
+    <AppLayout active="archive" isAdmin={profile?.is_admin}>
       {/* Hero + tabs */}
-      <section style={{ padding: '56px 48px 24px', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '56px 48px 24px', background: COLORS.bg }}>
         <div
           style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
@@ -199,7 +192,7 @@ export default function ArchivePage() {
       </section>
 
       {/* Archive list */}
-      <section style={{ padding: '32px 48px 80px', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '32px 48px 80px', background: COLORS.bg }}>
         {loading ? (
           <div style={{ padding: '60px 0', textAlign: 'center', color: COLORS.inkMuted, fontSize: 13 }}>
             불러오는 중…
@@ -219,10 +212,12 @@ export default function ArchivePage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {data.map((a) => {
-              const [statusLabel, statusTone] = statusInfo(a)
+              const statusLabel = getProposalStatusLabel(a.status)
+              const statusTone = getProposalStatusTone(a.status)
               const reply = a.official_replies?.[0]
               return (
                 <div
+                  className="responsive-grid"
                   key={a.id}
                   style={{
                     background: COLORS.surface, border: `1px solid ${COLORS.line}`,

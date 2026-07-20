@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
 import Btn from '../components/shared/Btn'
 import { useAuth } from '../contexts/AuthContext'
-import { useAdminQueue, useReportedProposals, adminUpdateStatus, dismissReport } from '../hooks/useProposals'
+import { useAdminQueue, useReportedProposals, adminUpdateStatus, dismissReport, adminDeleteProposal } from '../hooks/useProposals'
 import { COLORS } from '../tokens/tokens'
 import type { BadgeTone } from '../tokens/tokens'
 import type { Proposal } from '../types/database'
@@ -11,7 +12,8 @@ import type { Proposal } from '../types/database'
 // ── Helpers ──
 function statusInfo(p: Proposal): [string, BadgeTone] {
   if (p.status === 'done')     return ['반영 완료', 'brandSoft']
-  if (p.status === 'selected') return ['검토 대기', 'hold']
+  if (p.status === 'selected') return ['학생회 전달', 'hold']
+  if (p.status === 'discussing') return ['협의 중', 'hold']
   if (p.status === 'rejected') return ['반려', 'warn']
   return ['처리 중', 'default']
 }
@@ -73,14 +75,22 @@ export default function AdminPage() {
   const { profile } = useAuth()
   const { data: queue, loading: queueLoading, refetch: refetchQueue } = useAdminQueue()
   const { data: reported, loading: repLoading, refetch: refetchReported } = useReportedProposals()
+  const [busyAction, setBusyAction] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const handleStatusChange = async (proposalId: string, newStatus: string) => {
-    await adminUpdateStatus(proposalId, newStatus)
-    refetchQueue()
+    const actionId = `${proposalId}:${newStatus}`
+    setBusyAction(actionId)
+    setActionError(null)
+    const { error } = await adminUpdateStatus(proposalId, newStatus)
+    setBusyAction(null)
+    if (error) { setActionError(`상태를 변경하지 못했습니다: ${error}`); return false }
+    await Promise.all([refetchQueue(), refetchReported()])
+    return true
   }
 
   // KPI derived from real data
-  const waitingCount = queue.filter(p => p.status === 'selected').length
+  const waitingCount = queue.filter(p => p.status === 'selected' || p.status === 'discussing').length
   const doneThisMonth = queue.filter(p => {
     if (p.status !== 'done') return false
     const d = new Date(p.updated_at ?? p.created_at)
@@ -92,9 +102,9 @@ export default function AdminPage() {
   return (
     <AppLayout active="home" isAdmin={profile?.is_admin}>
       {/* Header + KPI */}
-      <section style={{ padding: '40px 48px 24px', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '40px 48px 24px', background: COLORS.bg }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', color: COLORS.brand }}>
@@ -115,7 +125,7 @@ export default function AdminPage() {
           </div>
 
           {/* KPI cards */}
-          <div style={{ marginTop: 28, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+          <div className="kpi-grid" style={{ marginTop: 28, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
             <KpiCard
               label="검토 대기 안건"
               value={queueLoading ? '…' : String(waitingCount)}
@@ -145,8 +155,14 @@ export default function AdminPage() {
       </section>
 
       {/* Queue + Reports */}
-      <section style={{ padding: '24px 48px 80px', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '24px 48px 80px', background: COLORS.bg }}>
+        {actionError && (
+          <div role="alert" style={{ maxWidth: 1240, margin: '0 auto 14px', padding: '12px 14px', borderRadius: 10, background: COLORS.warnSoft, color: COLORS.warn, fontSize: 12 }}>
+            {actionError}
+          </div>
+        )}
         <div
+          className="admin-grid"
           style={{
             maxWidth: 1240, margin: '0 auto',
             display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 20,
@@ -186,8 +202,7 @@ export default function AdminPage() {
             ) : (
               queue.map((q, i) => {
                 const [statusLabel, statusTone] = statusInfo(q)
-                // Extract author email from joined profiles if available
-                const authorEmail = (q as unknown as { profiles?: { email: string } }).profiles?.email ?? '(익명)'
+                const authorEmail = q.author_email ?? '(이메일 없음)'
                 return (
                   <div
                     key={q.id}
@@ -200,24 +215,24 @@ export default function AdminPage() {
                           <Badge tone={statusTone}>{statusLabel}</Badge>
                           <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{q.vote_count}표</span>
                         </div>
-                        <div
-                          style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, letterSpacing: '-0.015em', cursor: 'pointer' }}
+                        <button
+                          type="button"
+                          style={{ padding: 0, border: 0, background: 'transparent', textAlign: 'left', fontSize: 14, fontWeight: 600, color: COLORS.ink, letterSpacing: '-0.015em', cursor: 'pointer' }}
                           onClick={() => navigate(`/proposals/${q.id}`)}
                         >
                           {q.title}
+                        </button>
+                        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 6 }}>
+                          ⓘ 발의자 {authorEmail}{q.is_anonymous ? ' · 학생 화면 익명' : ''}
                         </div>
-                        {q.is_anonymous ? (
-                          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 6 }}>
-                            ⓘ 발의자 {authorEmail}
-                          </div>
-                        ) : null}
                       </div>
 
                       {/* Action buttons */}
                       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                         {(
                           [
-                            { label: '협의 중', status: 'selected' },
+                            { label: '학생회 전달', status: 'selected' },
+                            { label: '협의 중', status: 'discussing' },
                             { label: '반영', status: 'done' },
                             { label: '반려', status: 'rejected' },
                           ] as const
@@ -233,7 +248,7 @@ export default function AdminPage() {
                               cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
                               opacity: q.status === status ? 0.4 : 1,
                             }}
-                            disabled={q.status === status}
+                            disabled={q.status === status || busyAction !== null}
                           >
                             {label}
                           </button>
@@ -308,7 +323,7 @@ export default function AdminPage() {
                   <div style={{ fontSize: 11, color: COLORS.inkSub, marginTop: 4 }}>
                     사유: {reason || '미입력'}
                   </div>
-                  <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
+                  <div className="admin-report-actions" style={{ marginTop: 10, display: 'flex', gap: 6 }}>
                     <Btn
                       variant="outline" size="sm"
                       style={{ flex: 1, height: 30, fontSize: 11.5 }}
@@ -320,20 +335,39 @@ export default function AdminPage() {
                       variant="outline" size="sm"
                       style={{ flex: 1, height: 30, fontSize: 11.5, color: COLORS.brand, borderColor: COLORS.brand }}
                       onClick={async () => {
-                        // SECURITY FIX P3 (2025-05-28): 실수 방지를 위한 확인 다이얼로그 추가
                         if (!window.confirm('이 게시글의 모든 신고를 해제하시겠습니까?')) return
-                        await dismissReport(r.id)
-                        refetchReported()
+                        setBusyAction(`${r.id}:dismiss`)
+                        const { error } = await dismissReport(r.id)
+                        setBusyAction(null)
+                        if (error) setActionError(`신고를 해제하지 못했습니다: ${error}`)
+                        else await refetchReported()
                       }}
+                      disabled={busyAction !== null}
                     >
                       신고 해제
                     </Btn>
                     <Btn
                       variant="primary" size="sm"
                       style={{ flex: 1, height: 30, fontSize: 11.5 }}
-                      onClick={() => handleStatusChange(r.id, 'blinded')}
+                      onClick={() => handleStatusChange(r.id, r.status === 'blinded' ? 'active' : 'blinded')}
+                      disabled={busyAction !== null}
                     >
-                      블라인드
+                      {r.status === 'blinded' ? '블라인드 해제' : '블라인드'}
+                    </Btn>
+                    <Btn
+                      variant="outline" size="sm"
+                      style={{ flex: 1, height: 30, fontSize: 11.5, color: COLORS.warn, borderColor: COLORS.warn }}
+                      disabled={busyAction !== null}
+                      onClick={async () => {
+                        if (!window.confirm('이 게시글을 완전히 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return
+                        setBusyAction(`${r.id}:delete`)
+                        const { error } = await adminDeleteProposal(r.id)
+                        setBusyAction(null)
+                        if (error) setActionError(`게시글을 삭제하지 못했습니다: ${error}`)
+                        else await Promise.all([refetchQueue(), refetchReported()])
+                      }}
+                    >
+                      삭제
                     </Btn>
                   </div>
                 </div>

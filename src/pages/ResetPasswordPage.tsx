@@ -35,6 +35,8 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 function EyeToggle({ show, onToggle }: { show: boolean; onToggle: () => void }) {
   return (
     <button
+      type="button"
+      aria-label={show ? '비밀번호 숨기기' : '비밀번호 보기'}
       onClick={onToggle}
       style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, display: 'flex', flexShrink: 0 }}
     >

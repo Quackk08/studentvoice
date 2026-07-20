@@ -160,13 +160,13 @@ export default function BentoSection() {
               PRIVACY & SAFETY
             </div>
             <h3 className="text-7xl font-black m-0 tracking-tighter text-white leading-tight">
-              완전히 익명. 운영진만 학번을 확인합니다.
+              학생 화면에서는 익명. 운영진만 작성자 정보를 확인합니다.
             </h3>
             <div className="grid grid-cols-3 gap-5 mt-7">
               {[
-                ['🎭', '익명 게시', '일반 학생에게는 이름·학번이 전혀 노출되지 않습니다.'],
+                ['🎭', '익명 게시', '일반 학생에게는 이름과 학교 이메일이 노출되지 않습니다.'],
                 ['⚙️', '운영진 전용 열람', '신고·블라인드 처리 등 운영 목적 외에는 사용되지 않습니다.'],
-                ['🔒', '신고 시스템', '누구나 신고할 수 있고, 누적 신고 시 자동 비공개 처리됩니다.'],
+                ['🔒', '신고 시스템', '동일 안건 중복 신고를 막고, 신고 3회 이상이면 운영진이 검토합니다.'],
               ].map(([ic, t, d]) => (
                 <div key={t} className="p-5 rounded-3 border" style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}>
                   <div className="text-5xl mb-2.5">{ic}</div>

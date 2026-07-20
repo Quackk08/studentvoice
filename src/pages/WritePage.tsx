@@ -45,7 +45,7 @@ export default function WritePage() {
 
   return (
     <AppLayout active="write" isAdmin={profile?.is_admin ?? false}>
-      <section style={{ padding: '56px 48px 80px', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '56px 48px 80px', background: COLORS.bg }}>
         <div style={{ maxWidth: 880, margin: '0 auto' }}>
           <div
             style={{
@@ -114,9 +114,11 @@ export default function WritePage() {
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {CATS.map((c, i) => (
-                  <span
+                  <button
+                    type="button"
                     key={c}
                     onClick={() => setSelectedCat(i)}
+                    aria-pressed={i === selectedCat}
                     style={{
                       padding: '8px 14px',
                       borderRadius: 99,
@@ -129,7 +131,7 @@ export default function WritePage() {
                     }}
                   >
                     {c}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -216,6 +218,7 @@ export default function WritePage() {
 
             {/* Bottom row */}
             <div
+              className="write-bottom"
               style={{
                 marginTop: 28,
                 paddingTop: 24,
@@ -225,7 +228,6 @@ export default function WritePage() {
               }}
             >
               <label
-                onClick={() => setAnonymous(!anonymous)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -235,28 +237,12 @@ export default function WritePage() {
                   cursor: 'pointer',
                 }}
               >
-                <span
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 5,
-                    background: anonymous ? COLORS.brand : COLORS.surface,
-                    border: `1px solid ${anonymous ? COLORS.brand : COLORS.line}`,
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {anonymous ? '✓' : ''}
-                </span>
-                익명으로 게시 (학번은 운영진만 확인 가능합니다)
+                <input type="checkbox" checked={anonymous} onChange={event => setAnonymous(event.target.checked)} />
+                익명으로 게시 (작성자 이메일은 운영진만 확인할 수 있습니다)
               </label>
 
               {errorMsg && (
-                <div style={{ fontSize: 12, color: COLORS.warn, marginRight: 'auto', maxWidth: 320 }}>
+                <div role="alert" style={{ fontSize: 12, color: COLORS.warn, marginRight: 'auto', maxWidth: 320 }}>
                   {errorMsg}
                 </div>
               )}

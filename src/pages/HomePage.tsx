@@ -5,16 +5,8 @@ import ProgressBar from '../components/shared/ProgressBar'
 import { useAuth } from '../contexts/AuthContext'
 import { usePopularProposals, useSelectedProposals, useHomeStats } from '../hooks/useProposals'
 import { COLORS } from '../tokens/tokens'
-import type { BadgeTone } from '../tokens/tokens'
+import { getProposalStatusLabel, getProposalStatusTone } from '../lib/proposalStatus'
 import type { Proposal } from '../types/database'
-
-// ── Helpers ──
-function statusLabel(status: string): [string, BadgeTone] {
-  if (status === 'done')     return ['반영 완료', 'brandSoft']
-  if (status === 'selected') return ['학생회 전달', 'brandSoft']
-  if (status === 'rejected') return ['반려', 'warn']
-  return ['협의 중', 'hold']
-}
 
 function relativeTime(dateStr: string) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000
@@ -77,7 +69,7 @@ function SectionHeader({
   action?: React.ReactNode
 }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
       <div>
         <div
           style={{
@@ -114,7 +106,8 @@ function PopularCard({
   onClick: () => void
 }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
       style={{
         background: COLORS.surface,
@@ -127,6 +120,8 @@ function PopularCard({
         minHeight: large ? 280 : 240,
         position: 'relative',
         cursor: 'pointer',
+        textAlign: 'left',
+        fontFamily: 'inherit',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -191,7 +186,7 @@ function PopularCard({
           <span>💬 {d.comments}</span>
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -264,7 +259,7 @@ export default function HomePage() {
     max: 30,
     title: d.title,
     body: d.body,
-    author: d.is_anonymous ? `익명·${d.profiles?.grade ?? '?'}학년` : '작성자',
+    author: d.is_anonymous ? `익명 · ${d.author_grade ?? '?'}학년` : (d.author_name ?? `${d.author_grade ?? '?'}학년 학생`),
     when: relativeTime(d.created_at),
     comments: d.comment_count,
   })
@@ -273,8 +268,8 @@ export default function HomePage() {
     <AppLayout active="home" isAdmin={profile?.is_admin ?? false}>
       <div style={{ position: 'relative', flex: 1 }}>
         {/* Hero */}
-        <section style={{ padding: '48px 48px 24px', background: COLORS.bg }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <section className="responsive-section" style={{ padding: '48px 48px 24px', background: COLORS.bg }}>
+          <div className="home-hero-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <div
                 style={{
@@ -297,6 +292,7 @@ export default function HomePage() {
                 })()}
               </div>
               <h1
+                className="home-title"
                 style={{
                   fontSize: 56,
                   fontWeight: 800,
@@ -312,6 +308,7 @@ export default function HomePage() {
 
             {/* Stats widget — real data */}
             <div
+              className="home-stats"
               style={{
                 background: COLORS.surface,
                 border: `1px solid ${COLORS.line}`,
@@ -332,13 +329,14 @@ export default function HomePage() {
         </section>
 
         {/* Popular issues */}
-        <section style={{ padding: '36px 48px 24px', background: COLORS.bg }}>
+        <section className="responsive-section" style={{ padding: '36px 48px 24px', background: COLORS.bg }}>
           <SectionHeader
             kicker="인기 이슈"
             title="곧 선정될 안건들"
             sub="추천 20표 이상 · 30표 달성 시 학생회로 자동 전달됩니다."
           />
           <div
+            className="responsive-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: '1.4fr 1fr 1fr',
@@ -366,13 +364,14 @@ export default function HomePage() {
         </section>
 
         {/* Selected issues */}
-        <section style={{ padding: '36px 48px 80px', background: COLORS.bg }}>
+        <section className="responsive-section" style={{ padding: '36px 48px 80px', background: COLORS.bg }}>
           <SectionHeader
             kicker="선정된 안건"
             title="학생회로 전달된 의견"
             sub="추천 30표를 달성하여 학생회·학교에 정식 전달된 안건입니다."
             action={
-              <span
+              <button
+                type="button"
                 onClick={() => navigate('/archive')}
                 style={{
                   fontSize: 13,
@@ -381,10 +380,13 @@ export default function HomePage() {
                   textDecoration: 'underline',
                   textUnderlineOffset: 3,
                   cursor: 'pointer',
+                  border: 0,
+                  background: 'transparent',
+                  fontFamily: 'inherit',
                 }}
               >
                 전체 아카이브 →
-              </span>
+              </button>
             }
           />
 
@@ -405,9 +407,12 @@ export default function HomePage() {
               }}
             >
               {selected.map((s, i) => {
-                const [label, tone] = statusLabel(s.status)
+                const label = getProposalStatusLabel(s.status)
+                const tone = getProposalStatusTone(s.status)
                 return (
-                  <div
+                  <button
+                    className="selected-proposal-row"
+                    type="button"
                     key={s.id}
                     onClick={() => navigate(`/proposals/${s.id}`)}
                     style={{
@@ -418,6 +423,13 @@ export default function HomePage() {
                       alignItems: 'center',
                       borderTop: i ? `1px solid ${COLORS.lineSoft}` : 'none',
                       cursor: 'pointer',
+                      width: '100%',
+                      borderRight: 0,
+                      borderBottom: 0,
+                      borderLeft: 0,
+                      background: 'transparent',
+                      textAlign: 'left',
+                      fontFamily: 'inherit',
                     }}
                   >
                     <span
@@ -448,7 +460,7 @@ export default function HomePage() {
                       <span style={{ color: COLORS.inkMuted }}> 표 추천</span>
                     </div>
                     <span style={{ fontSize: 12, color: COLORS.inkMuted, justifySelf: 'end' }}>→</span>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -456,7 +468,10 @@ export default function HomePage() {
         </section>
 
         {/* FAB */}
-        <div
+        <button
+          type="button"
+          aria-label="새 의견 제안하기"
+          className="home-write-fab"
           onClick={() => navigate('/write')}
           style={{
             position: 'fixed',
@@ -474,13 +489,15 @@ export default function HomePage() {
             fontSize: 14,
             fontWeight: 600,
             cursor: 'pointer',
+            border: 0,
+            fontFamily: 'inherit',
           }}
         >
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
             <path d="M10 4v12M4 10h12" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
           의견 제안하기
-        </div>
+        </button>
       </div>
     </AppLayout>
   )

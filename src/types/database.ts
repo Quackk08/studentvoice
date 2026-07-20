@@ -1,4 +1,4 @@
-export type ProposalStatus = 'active' | 'selected' | 'done' | 'rejected' | 'blinded'
+export type ProposalStatus = 'active' | 'selected' | 'discussing' | 'done' | 'rejected' | 'blinded'
 export type ProposalCategory = '#시설' | '#급식' | '#교칙' | '#학사' | '#수업' | '#복지' | '#기타'
 
 export interface Profile {
@@ -14,7 +14,8 @@ export interface Profile {
 
 export interface Proposal {
   id: string
-  author_id: string
+  /** Only populated for the author or an administrator. */
+  author_id: string | null
   category: ProposalCategory
   title: string
   body: string
@@ -25,8 +26,11 @@ export interface Proposal {
   comment_count: number
   created_at: string
   updated_at: string
-  // Joined
-  profiles?: Pick<Profile, 'id' | 'email' | 'grade' | 'class' | 'is_admin'>
+  // Safe author summary from proposal_feed.
+  author_name?: string | null
+  author_grade?: number | null
+  author_class?: number | null
+  author_email?: string | null
   official_replies?: OfficialReply[]
   user_voted?: boolean
   user_saved?: boolean
@@ -58,11 +62,25 @@ export interface Save {
 export interface Comment {
   id: string
   proposal_id: string
-  author_id: string
+  /** Only populated for the author or an administrator. */
+  author_id: string | null
   content: string
   is_anonymous: boolean
   created_at: string
-  profiles?: Pick<Profile, 'id' | 'name' | 'grade' | 'class'>
+  author_name?: string | null
+  author_grade?: number | null
+}
+
+export interface Notification {
+  id: string
+  user_id: string
+  proposal_id: string | null
+  kind: 'selected' | 'discussing' | 'done' | 'rejected' | 'reply'
+  title: string
+  message: string
+  created_at: string
+  read_at: string | null
+  dismissed_at: string | null
 }
 
 export interface NotificationSettings {

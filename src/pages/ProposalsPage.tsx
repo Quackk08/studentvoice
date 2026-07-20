@@ -55,7 +55,8 @@ function TagPill({ children }: { children: React.ReactNode }) {
 function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
   const isHot = p.vote_count >= 20
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
       style={{
         background: COLORS.surface,
@@ -71,6 +72,8 @@ function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
         /* Grid 아이템이 컨텐츠 크기 이하로 줄어들 수 있게 */
         minWidth: 0,
         overflow: 'hidden',
+        textAlign: 'left',
+        fontFamily: 'inherit',
       }}
     >
       {/* Header row */}
@@ -134,13 +137,13 @@ function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
       >
         <span>
           {p.is_anonymous
-            ? `익명 · ${p.profiles?.grade ?? '?'}학년`
-            : `${p.profiles?.grade ?? '?'}학년`}
+            ? `익명 · ${p.author_grade ?? '?'}학년`
+            : (p.author_name ?? `${p.author_grade ?? '?'}학년 학생`)}
         </span>
         <span style={{ marginLeft: 'auto' }}>💬 {p.comment_count}</span>
         <span>👁 {p.view_count}</span>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -197,7 +200,7 @@ export default function ProposalsPage() {
   return (
     <AppLayout active="proposals" isAdmin={profile?.is_admin ?? false}>
       {/* ── Hero ── */}
-      <section style={{ padding: '48px 48px 0', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '48px 48px 0', background: COLORS.bg }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div
             style={{
@@ -240,6 +243,7 @@ export default function ProposalsPage() {
 
       {/* ── Filter / Search bar ── */}
       <section
+        className="responsive-section"
         style={{
           padding: '24px 48px 0',
           background: COLORS.bg,
@@ -248,9 +252,9 @@ export default function ProposalsPage() {
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 0 }}>
+          <div className="filter-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 0 }}>
             {/* Category tabs */}
-            <div style={{ display: 'flex', gap: 2, flex: 1 }}>
+            <div className="filter-tabs" style={{ display: 'flex', gap: 2, flex: 1 }}>
               {CATEGORY_TABS.map(t => {
                 const isActive = activeCategory === t.id
                 return (
@@ -329,9 +333,10 @@ export default function ProposalsPage() {
       </section>
 
       {/* ── Proposal grid ── */}
-      <section style={{ padding: '28px 48px 80px', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '28px 48px 80px', background: COLORS.bg }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div
+            className="proposal-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
@@ -369,13 +374,16 @@ export default function ProposalsPage() {
       </section>
 
       {/* FAB */}
-      <div
+      <button
+        type="button"
+        aria-label="새 안건 제안하기"
         onClick={() => navigate('/write')}
         style={{
           position: 'fixed', right: 36, bottom: 36, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 12,
           padding: '14px 22px 14px 18px', borderRadius: 999,
           background: COLORS.ink, color: '#fff',
+          border: 'none', fontFamily: 'inherit',
           boxShadow: '0 12px 32px -8px rgba(0,0,0,0.35), 0 4px 10px -2px rgba(0,0,0,0.15)',
           fontSize: 14, fontWeight: 600, cursor: 'pointer',
         }}
@@ -384,7 +392,7 @@ export default function ProposalsPage() {
           <path d="M10 4v12M4 10h12" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
         의견 제안하기
-      </div>
+      </button>
     </AppLayout>
   )
 }

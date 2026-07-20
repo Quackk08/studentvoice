@@ -47,6 +47,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
     <div>
       {/* Notice ribbon */}
       <div
+        className="notice-ribbon"
         style={{
           background: COLORS.ink,
           color: '#fff',
@@ -78,6 +79,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
 
       {/* Main header */}
       <header
+        className="app-header"
         style={{
           background: COLORS.surface,
           borderBottom: `1px solid ${COLORS.line}`,
@@ -103,7 +105,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
         </Link>
 
         {/* Nav */}
-        <nav style={{ display: 'flex', gap: 28, marginLeft: 24 }}>
+        <nav className="app-nav" aria-label="주요 메뉴" style={{ display: 'flex', gap: 28, marginLeft: 24 }}>
           {NAV_TABS.map(t => (
             <Link
               key={t.id}
@@ -124,11 +126,13 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
         </nav>
 
         {/* Right side */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div className="app-header-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
           <NotificationBell userId={profile?.id} />
 
           {/* Profile pill — real data */}
-          <div
+          <button
+            type="button"
+            aria-label="마이페이지 열기"
             onClick={() => navigate('/mypage')}
             style={{
               display: 'flex',
@@ -138,6 +142,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
               border: `1px solid ${COLORS.line}`,
               borderRadius: 99,
               cursor: 'pointer',
+              background: COLORS.surface,
             }}
           >
             {isAdmin && <Badge tone="brand">운영자</Badge>}
@@ -159,7 +164,7 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
             >
               {avatarText}
             </div>
-          </div>
+          </button>
 
           {/* Admin link */}
           {isAdmin && (

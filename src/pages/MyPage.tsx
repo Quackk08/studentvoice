@@ -7,6 +7,7 @@ import Btn from '../components/shared/Btn'
 import { useAuth } from '../contexts/AuthContext'
 import { useMyProposals, useNotificationSettings } from '../hooks/useProposals'
 import { normalizeText, validatePassword } from '../lib/security'
+import { getProposalStatusLabel, getProposalStatusTone } from '../lib/proposalStatus'
 import { supabase } from '../lib/supabase'
 import { COLORS } from '../tokens/tokens'
 import type { BadgeTone } from '../tokens/tokens'
@@ -15,11 +16,7 @@ import type { Proposal } from '../types/database'
 // ── Helpers ──
 function proposalStatus(p: Proposal): [string, BadgeTone] {
   if (p.vote_count >= 20 && p.status === 'active') return ['인기 이슈', 'fire']
-  if (p.status === 'active')   return ['제안 중', 'outline']
-  if (p.status === 'selected') return ['선정됨', 'brand']
-  if (p.status === 'done')     return ['반영 완료', 'brandSoft']
-  if (p.status === 'rejected') return ['반려', 'warn']
-  return ['기타', 'default']
+  return [getProposalStatusLabel(p.status), getProposalStatusTone(p.status)]
 }
 
 function initials(name: string | null | undefined, email: string | null | undefined): string {
@@ -64,7 +61,7 @@ export default function MyPage() {
   const navigate = useNavigate()
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { data: myProposals, loading } = useMyProposals(user?.id)
-  const { settings: notifSettings, updateSetting } = useNotificationSettings(user?.id)
+  const { settings: notifSettings, saving: notifSaving, error: notifError, updateSetting } = useNotificationSettings(user?.id)
 
   // Profile edit state
   const [profileEditing, setProfileEditing] = useState(false)
@@ -182,9 +179,10 @@ export default function MyPage() {
   return (
     <AppLayout active="home" isAdmin={profile?.is_admin}>
       {/* Profile section */}
-      <section style={{ padding: '56px 48px 24px', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '56px 48px 24px', background: COLORS.bg }}>
         <div style={{ maxWidth: 1080, margin: '0 auto' }}>
           <div
+            className="profile-card"
             style={{
               fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
               color: COLORS.brand, marginBottom: 14,
@@ -324,8 +322,9 @@ export default function MyPage() {
       </section>
 
       {/* Main content */}
-      <section style={{ padding: '24px 48px 80px', background: COLORS.bg }}>
+      <section className="responsive-section" style={{ padding: '24px 48px 80px', background: COLORS.bg }}>
         <div
+          className="responsive-grid"
           style={{
             maxWidth: 1080, margin: '0 auto',
             display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20,
@@ -490,6 +489,7 @@ export default function MyPage() {
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: '-0.02em', marginBottom: 14 }}>
                 알림 설정
               </h3>
+              {notifError && <div role="alert" style={{ fontSize: 12, color: COLORS.warn, marginBottom: 10 }}>{notifError}</div>}
               {(
                 [
                   { key: 'on_selected', label: '내 안건이 선정되었을 때' },
@@ -507,13 +507,19 @@ export default function MyPage() {
                     }}
                   >
                     <span style={{ fontSize: 13, color: COLORS.ink }}>{label}</span>
-                    <div
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={on}
+                      aria-label={label}
                       onClick={() => updateSetting(key, !on)}
+                      disabled={notifSaving}
                       style={{
                         width: 34, height: 20, borderRadius: 99,
                         background: on ? COLORS.brand : COLORS.line,
-                        position: 'relative', cursor: 'pointer',
+                        position: 'relative', cursor: notifSaving ? 'wait' : 'pointer',
                         transition: 'background .2s', flexShrink: 0,
+                        border: 0, padding: 0,
                       }}
                     >
                       <span
@@ -525,7 +531,7 @@ export default function MyPage() {
                           boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
                         }}
                       />
-                    </div>
+                    </button>
                   </div>
                 )
               })}

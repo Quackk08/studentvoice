@@ -8,18 +8,46 @@ import {
   validateProposalInput,
   validateReportReason,
 } from '../lib/security'
-import type { Proposal, ProposalCategory, Comment, NotificationSettings } from '../types/database'
+import type {
+  Proposal,
+  ProposalCategory,
+  Comment,
+  NotificationSettings,
+  Notification,
+} from '../types/database'
+import { SELECTED_PROPOSAL_STATUSES } from '../lib/proposalStatus'
 
-export type UserNotificationKind = 'selected' | 'done' | 'rejected' | 'reply'
+export type UserNotificationKind = Notification['kind']
 
 export interface UserNotification {
   id: string
-  proposalId: string
+  proposalId: string | null
   title: string
   message: string
   kind: UserNotificationKind
   createdAt: string
   href: string
+  readAt: string | null
+}
+
+const DATA_CHANGED_EVENT = 'studentvoice:data-changed'
+
+export function announceDataChanged() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(DATA_CHANGED_EVENT))
+}
+
+function subscribeToDataChanges(callback: () => void) {
+  const onVisibilityChange = () => { if (document.visibilityState === 'visible') callback() }
+  const intervalId = window.setInterval(callback, 30_000)
+  window.addEventListener(DATA_CHANGED_EVENT, callback)
+  window.addEventListener('focus', callback)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  return () => {
+    window.clearInterval(intervalId)
+    window.removeEventListener(DATA_CHANGED_EVENT, callback)
+    window.removeEventListener('focus', callback)
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+  }
 }
 
 export function useNoticeStats() {
@@ -30,34 +58,19 @@ export function useNoticeStats() {
   const [loading, setLoading] = useState(true)
 
   const fetch = useCallback(async () => {
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-
-    const { data, count } = await supabase
-      .from('proposals')
-      .select('updated_at, created_at', { count: 'exact' })
-      .in('status', ['selected', 'done', 'rejected'])
-      .gte('updated_at', monthStart)
-      .order('updated_at', { ascending: false })
+    const { data } = await supabase.rpc('get_notice_stats')
+    const row = data?.[0]
 
     setStats({
-      deliveredThisMonth: count ?? 0,
-      latestDeliveredAt: data?.[0]?.updated_at ?? data?.[0]?.created_at ?? null,
+      deliveredThisMonth: Number(row?.delivered_this_month ?? 0),
+      latestDeliveredAt: row?.latest_delivered_at ?? null,
     })
     setLoading(false)
   }, [])
 
   useEffect(() => {
     fetch()
-
-    const channel = supabase
-      .channel('notice-proposals')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'proposals' }, fetch)
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return subscribeToDataChanges(fetch)
   }, [fetch])
 
   return { stats, loading }
@@ -73,37 +86,41 @@ export function useHomeStats() {
   })
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const fetch = useCallback(async () => {
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
-    supabase.rpc('get_public_home_stats').then(async ({ data, error }) => {
-      if (!error && data?.[0]) {
-        setStats({
-          profiles: Number(data[0].profiles ?? 0),
-          active: Number(data[0].active ?? 0),
-          selected: Number(data[0].selected ?? 0),
-          doneThisMonth: Number(data[0].done_this_month ?? 0),
-        })
-        setLoading(false)
-        return
-      }
-
-      const [a, s, d] = await Promise.all([
-        supabase.from('proposals').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('proposals').select('*', { count: 'exact', head: true }).in('status', ['selected', 'done', 'rejected']),
-        supabase.from('proposals').select('*', { count: 'exact', head: true }).eq('status', 'done').gte('updated_at', monthStart),
-      ])
-
+    const { data, error } = await supabase.rpc('get_public_home_stats')
+    if (!error && data?.[0]) {
       setStats({
-        profiles: 0,
-        active: a.count ?? 0,
-        selected: s.count ?? 0,
-        doneThisMonth: d.count ?? 0,
+        profiles: Number(data[0].profiles ?? 0),
+        active: Number(data[0].active ?? 0),
+        selected: Number(data[0].selected ?? 0),
+        doneThisMonth: Number(data[0].done_this_month ?? 0),
       })
       setLoading(false)
+      return
+    }
+
+    const [a, s, d] = await Promise.all([
+      supabase.from('proposal_feed').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('proposal_feed').select('*', { count: 'exact', head: true }).in('status', SELECTED_PROPOSAL_STATUSES),
+      supabase.from('proposal_feed').select('*', { count: 'exact', head: true }).eq('status', 'done').gte('updated_at', monthStart),
+    ])
+
+    setStats({
+      profiles: 0,
+      active: a.count ?? 0,
+      selected: s.count ?? 0,
+      doneThisMonth: d.count ?? 0,
     })
+    setLoading(false)
   }, [])
+
+  useEffect(() => {
+    fetch()
+    return subscribeToDataChanges(fetch)
+  }, [fetch])
 
   return { stats, loading }
 }
@@ -114,20 +131,24 @@ export function usePopularProposals() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    supabase
-      .from('proposals')
-      .select('*, official_replies(*)')
+  const fetch = useCallback(async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('proposal_feed')
+      .select('*')
       .eq('status', 'active')
       .gte('vote_count', 20)
       .order('vote_count', { ascending: false })
       .limit(10)
-      .then(({ data, error }) => {
-        if (error) setError(error.message)
-        else setData((data ?? []) as Proposal[])
-        setLoading(false)
-      })
+    if (error) setError(error.message)
+    else { setData((data ?? []) as Proposal[]); setError(null) }
+    setLoading(false)
   }, [])
+
+  useEffect(() => {
+    fetch()
+    return subscribeToDataChanges(fetch)
+  }, [fetch])
 
   return { data, loading, error }
 }
@@ -137,18 +158,23 @@ export function useSelectedProposals(limit = 5) {
   const [data, setData] = useState<Proposal[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    supabase
-      .from('proposals')
-      .select('*, official_replies(*)')
-      .in('status', ['selected', 'done', 'rejected'])
+  const fetch = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('proposal_feed')
+      .select('*')
+      .in('status', SELECTED_PROPOSAL_STATUSES)
+      .gte('vote_count', 30)
       .order('vote_count', { ascending: false })
       .limit(limit)
-      .then(({ data }) => {
-        setData((data ?? []) as Proposal[])
-        setLoading(false)
-      })
+    setData((data ?? []) as Proposal[])
+    setLoading(false)
   }, [limit])
+
+  useEffect(() => {
+    fetch()
+    return subscribeToDataChanges(fetch)
+  }, [fetch])
 
   return { data, loading }
 }
@@ -160,23 +186,24 @@ export function useArchive(filter: 'all' | 'done' | 'wip' | 'rejected' = 'all') 
   const [total, setTotal] = useState(0)
 
   useEffect(() => {
-    setLoading(true)
-    let query = supabase
-      .from('proposals')
-      .select('*, official_replies(*)')
-      .in('status', ['selected', 'done', 'rejected'])
-      .order('created_at', { ascending: false })
-
-    if (filter === 'done') query = query.eq('status', 'done')
-    else if (filter === 'wip') query = query.in('status', ['selected'])
-    else if (filter === 'rejected') query = query.eq('status', 'rejected')
-
-    query.then(({ data }) => {
-      const items = (data ?? []) as Proposal[]
-      setData(items)
-      if (filter === 'all') setTotal(items.length)
-      setLoading(false)
-    })
+    const fetch = () => {
+      setLoading(true)
+      let query = supabase.from('proposal_feed').select('*')
+        .in('status', SELECTED_PROPOSAL_STATUSES)
+        .gte('vote_count', 30)
+        .order('created_at', { ascending: false })
+      if (filter === 'done') query = query.eq('status', 'done')
+      else if (filter === 'wip') query = query.in('status', ['selected', 'discussing'])
+      else if (filter === 'rejected') query = query.eq('status', 'rejected')
+      query.then(({ data }) => {
+        const items = (data ?? []) as Proposal[]
+        setData(items)
+        if (filter === 'all') setTotal(items.length)
+        setLoading(false)
+      })
+    }
+    fetch()
+    return subscribeToDataChanges(fetch)
   }, [filter])
 
   return { data, loading, total }
@@ -195,8 +222,8 @@ export function useProposal(id: string) {
       return
     }
     const { data, error } = await supabase
-      .from('proposals')
-      .select('*, profiles(id, email, grade, class, is_admin), official_replies(*)')
+      .from('proposal_feed')
+      .select('*')
       .eq('id', id)
       .single()
     if (error) setError(error.message)
@@ -204,7 +231,10 @@ export function useProposal(id: string) {
     setLoading(false)
   }, [id])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    fetch()
+    return subscribeToDataChanges(fetch)
+  }, [fetch])
 
   // Increment view count — 30분 이내 같은 안건 재방문은 카운트 제외 (새로고침 어뷰징 방지)
   useEffect(() => {
@@ -231,28 +261,20 @@ export function useAllProposals(
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
-    let query = supabase
-      .from('proposals')
-      .select('*, profiles(id, grade, class)')
-      .eq('status', 'active')
-
-    if (category !== 'all') {
-      query = query.eq('category', category)
+    const fetch = () => {
+      setLoading(true)
+      let query = supabase.from('proposal_feed').select('*').eq('status', 'active')
+      if (category !== 'all') query = query.eq('category', category)
+      if (sort === 'votes') query = query.order('vote_count', { ascending: false })
+      else if (sort === 'comments') query = query.order('comment_count', { ascending: false })
+      else query = query.order('created_at', { ascending: false })
+      query.then(({ data }) => {
+        setData((data ?? []) as Proposal[])
+        setLoading(false)
+      })
     }
-
-    if (sort === 'votes') {
-      query = query.order('vote_count', { ascending: false })
-    } else if (sort === 'comments') {
-      query = query.order('comment_count', { ascending: false })
-    } else {
-      query = query.order('created_at', { ascending: false })
-    }
-
-    query.then(({ data }) => {
-      setData((data ?? []) as Proposal[])
-      setLoading(false)
-    })
+    fetch()
+    return subscribeToDataChanges(fetch)
   }, [category, sort])
 
   return { data, loading }
@@ -265,100 +287,95 @@ export function useMyProposals(userId: string | undefined) {
 
   useEffect(() => {
     if (!userId) { setLoading(false); return }
-    supabase
-      .from('proposals')
-      .select('*')
-      .eq('author_id', userId)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setData((data ?? []) as Proposal[])
-        setLoading(false)
-      })
+    const fetch = () => {
+      supabase.from('proposal_feed').select('*').eq('author_id', userId)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          setData((data ?? []) as Proposal[])
+          setLoading(false)
+        })
+    }
+    fetch()
+    return subscribeToDataChanges(fetch)
   }, [userId])
 
   return { data, loading }
 }
 
-// ── Vote on a proposal ──
 export function useUserNotifications(userId: string | undefined) {
   const [data, setData] = useState<UserNotification[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const fetch = useCallback(async () => {
     if (!userId) { setData([]); setLoading(false); return }
-
     setLoading(true)
-    supabase
-      .from('proposals')
-      .select('id, title, status, updated_at, created_at, official_replies(*)')
-      .eq('author_id', userId)
-      .neq('status', 'active')
-      .neq('status', 'blinded')
-      .order('updated_at', { ascending: false })
-      .then(({ data }) => {
-        const notifications = ((data ?? []) as Proposal[]).flatMap(proposal => {
-          const items: UserNotification[] = []
-          const href = `/proposals/${proposal.id}`
-          const createdAt = proposal.updated_at ?? proposal.created_at
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .is('dismissed_at', null)
+      .order('created_at', { ascending: false })
+      .limit(50)
 
-          if (proposal.status === 'selected') {
-            items.push({
-              id: `status:${proposal.id}:selected:${createdAt}`,
-              proposalId: proposal.id,
-              title: '내 안건이 선정되었습니다',
-              message: proposal.title,
-              kind: 'selected',
-              createdAt,
-              href,
-            })
-          }
-
-          if (proposal.status === 'done') {
-            items.push({
-              id: `status:${proposal.id}:done:${createdAt}`,
-              proposalId: proposal.id,
-              title: '내 안건이 반영되었습니다',
-              message: proposal.title,
-              kind: 'done',
-              createdAt,
-              href,
-            })
-          }
-
-          if (proposal.status === 'rejected') {
-            items.push({
-              id: `status:${proposal.id}:rejected:${createdAt}`,
-              proposalId: proposal.id,
-              title: '내 안건 검토 결과가 도착했습니다',
-              message: proposal.title,
-              kind: 'rejected',
-              createdAt,
-              href,
-            })
-          }
-
-          for (const reply of proposal.official_replies ?? []) {
-            items.push({
-              id: `reply:${proposal.id}:${reply.id}`,
-              proposalId: proposal.id,
-              title: '학생회 공식 답변이 달렸습니다',
-              message: proposal.title,
-              kind: 'reply',
-              createdAt: reply.created_at,
-              href,
-            })
-          }
-
-          return items
-        })
-
-        notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        setData(notifications)
-        setLoading(false)
-      })
+    if (!error) {
+      setData(((data ?? []) as Notification[]).map(item => ({
+        id: item.id,
+        proposalId: item.proposal_id,
+        title: item.title,
+        message: item.message,
+        kind: item.kind,
+        createdAt: item.created_at,
+        href: item.proposal_id ? `/proposals/${item.proposal_id}` : '/home',
+        readAt: item.read_at,
+      })))
+    }
+    setLoading(false)
   }, [userId])
 
-  return { data, loading }
+  useEffect(() => {
+    fetch()
+    return subscribeToDataChanges(fetch)
+  }, [fetch])
+
+  return { data, loading, refetch: fetch }
+}
+
+export async function markNotificationRead(notificationId: string) {
+  if (!isUuid(notificationId)) return { error: 'Invalid request.' }
+  const { error } = await supabase.from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', notificationId)
+  if (!error) announceDataChanged()
+  return { error: error?.message ?? null }
+}
+
+export async function dismissNotification(notificationId: string) {
+  if (!isUuid(notificationId)) return { error: 'Invalid request.' }
+  const { error } = await supabase.from('notifications')
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq('id', notificationId)
+  if (!error) announceDataChanged()
+  return { error: error?.message ?? null }
+}
+
+export async function markAllNotificationsRead(userId: string) {
+  if (!isUuid(userId)) return { error: 'Invalid request.' }
+  const { error } = await supabase.from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .is('read_at', null)
+  if (!error) announceDataChanged()
+  return { error: error?.message ?? null }
+}
+
+export async function clearReadNotifications(userId: string) {
+  if (!isUuid(userId)) return { error: 'Invalid request.' }
+  const { error } = await supabase.from('notifications')
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .not('read_at', 'is', null)
+  if (!error) announceDataChanged()
+  return { error: error?.message ?? null }
 }
 
 export async function voteProposal(proposalId: string, userId: string): Promise<{ error: string | null }> {
@@ -367,6 +384,7 @@ export async function voteProposal(proposalId: string, userId: string): Promise<
     .from('votes')
     .insert({ proposal_id: proposalId, user_id: userId })
   if (error) return { error: error.message }
+  announceDataChanged()
   return { error: null }
 }
 
@@ -377,6 +395,7 @@ export async function unvoteProposal(proposalId: string, userId: string): Promis
     .delete()
     .match({ proposal_id: proposalId, user_id: userId })
   if (error) return { error: error.message }
+  announceDataChanged()
   return { error: null }
 }
 
@@ -403,18 +422,21 @@ export async function submitProposal(params: {
   const validated = validateProposalInput(params)
   if (validated.error || !validated.value) return { data: null, error: validated.error ?? 'Invalid request.' }
 
-  const { data, error } = await supabase
-    .from('proposals')
-    .insert({
-      author_id: params.authorId,
-      category: validated.value.category,
-      title: validated.value.title,
-      body: validated.value.body,
-      is_anonymous: params.isAnonymous,
-    })
-    .select()
+  const { data: newId, error } = await supabase.rpc('create_proposal', {
+    p_category: validated.value.category,
+    p_title: validated.value.title,
+    p_body: validated.value.body,
+    p_is_anonymous: params.isAnonymous,
+  })
+  if (error || !newId) return { data: null, error: error?.message ?? '안건을 등록하지 못했습니다.' }
+
+  const { data, error: fetchError } = await supabase
+    .from('proposal_feed')
+    .select('*')
+    .eq('id', newId)
     .single()
-  if (error) return { data: null, error: error.message }
+  if (fetchError) return { data: null, error: fetchError.message }
+  announceDataChanged()
   return { data: data as Proposal, error: null }
 }
 
@@ -424,6 +446,7 @@ export async function reportProposal(proposalId: string, reporterId: string, rea
   const { error } = await supabase
     .from('reports')
     .insert({ proposal_id: proposalId, reporter_id: reporterId, reason: validateReportReason(reason) })
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -435,15 +458,19 @@ export function useAdminQueue() {
   const refetch = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase
-      .from('proposals')
-      .select('*, profiles(email)')
-      .in('status', ['selected', 'done', 'rejected'])
+      .from('proposal_feed')
+      .select('*')
+      .in('status', SELECTED_PROPOSAL_STATUSES)
+      .gte('vote_count', 30)
       .order('vote_count', { ascending: false })
     setData((data ?? []) as Proposal[])
     setLoading(false)
   }, [])
 
-  useEffect(() => { refetch() }, [refetch])
+  useEffect(() => {
+    refetch()
+    return subscribeToDataChanges(refetch)
+  }, [refetch])
 
   return { data, loading, refetch }
 }
@@ -453,6 +480,7 @@ export async function adminUpdateStatus(proposalId: string, newStatus: string) {
   if (!isUuid(proposalId) || !isProposalStatus(newStatus)) return { error: 'Invalid request.' }
   const { error } = await supabase
     .rpc('update_proposal_status', { proposal_id: proposalId, new_status: newStatus })
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -463,25 +491,21 @@ export function useReportedProposals() {
 
   const fetch = useCallback(async () => {
     setLoading(true)
-    const { data: reports } = await supabase
-      .from('reports')
-      .select('proposal_id, reason, created_at')
-      .order('created_at', { ascending: false })
+    const { data: reports, error } = await supabase.rpc('get_reported_proposals')
 
-    if (!reports?.length) { setData([]); setLoading(false); return }
+    if (error || !reports?.length) { setData([]); setLoading(false); return }
 
     const grouped: Record<string, { count: number; reason: string }> = {}
     for (const r of reports) {
       if (!grouped[r.proposal_id]) {
-        grouped[r.proposal_id] = { count: 0, reason: r.reason ?? '' }
+        grouped[r.proposal_id] = { count: Number(r.report_count), reason: r.latest_reason ?? '' }
       }
-      grouped[r.proposal_id].count++
     }
 
     const ids = Object.keys(grouped)
     const { data: proposals } = await supabase
-      .from('proposals')
-      .select('*, profiles(email)')
+      .from('proposal_feed')
+      .select('*')
       .in('id', ids)
 
     const result = (proposals ?? []).map(p => ({
@@ -494,7 +518,10 @@ export function useReportedProposals() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    fetch()
+    return subscribeToDataChanges(fetch)
+  }, [fetch])
 
   return { data, loading, refetch: fetch }
 }
@@ -503,9 +530,8 @@ export function useReportedProposals() {
 export async function dismissReport(proposalId: string): Promise<{ error: string | null }> {
   if (!isUuid(proposalId)) return { error: 'Invalid request.' }
   const { error } = await supabase
-    .from('reports')
-    .delete()
-    .eq('proposal_id', proposalId)
+    .rpc('dismiss_proposal_reports', { p_proposal_id: proposalId })
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -515,6 +541,7 @@ export async function saveProposal(proposalId: string, userId: string) {
   const { error } = await supabase
     .from('saves')
     .insert({ proposal_id: proposalId, user_id: userId })
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -524,6 +551,7 @@ export async function unsaveProposal(proposalId: string, userId: string) {
     .from('saves')
     .delete()
     .match({ proposal_id: proposalId, user_id: userId })
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -533,16 +561,16 @@ export function useComments(proposalId: string) {
   const [loading, setLoading] = useState(true)
 
   const fetch = useCallback(async () => {
-    const { data } = await supabase
-      .from('comments')
-      .select('*, profiles(id, name, grade)')
-      .eq('proposal_id', proposalId)
-      .order('created_at', { ascending: true })
+    if (!isUuid(proposalId)) { setData([]); setLoading(false); return }
+    const { data } = await supabase.rpc('get_proposal_comments', { p_proposal_id: proposalId })
     setData((data ?? []) as Comment[])
     setLoading(false)
   }, [proposalId])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    fetch()
+    return subscribeToDataChanges(fetch)
+  }, [fetch])
 
   return { data, loading, refetch: fetch }
 }
@@ -560,6 +588,7 @@ export async function addComment(
   const { error } = await supabase
     .from('comments')
     .insert({ proposal_id: proposalId, author_id: authorId, content: validated.value, is_anonymous: isAnonymous })
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -569,6 +598,7 @@ export async function deleteComment(commentId: string): Promise<{ error: string 
     .from('comments')
     .delete()
     .eq('id', commentId)
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -582,6 +612,8 @@ const DEFAULT_NOTIF: Omit<NotificationSettings, 'user_id' | 'updated_at'> = {
 export function useNotificationSettings(userId: string | undefined) {
   const [settings, setSettings] = useState(DEFAULT_NOTIF)
   const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!userId) return
@@ -597,15 +629,24 @@ export function useNotificationSettings(userId: string | undefined) {
   }, [userId])
 
   const updateSetting = async (key: keyof typeof DEFAULT_NOTIF, value: boolean) => {
+    const previous = settings
     const next = { ...settings, [key]: value }
     setSettings(next)
-    if (!userId) return
-    await supabase
+    setSaving(true)
+    setError(null)
+    if (!userId) { setSaving(false); return { error: '로그인이 필요합니다.' } }
+    const { error } = await supabase
       .from('notification_settings')
       .upsert({ user_id: userId, ...next, updated_at: new Date().toISOString() })
+    setSaving(false)
+    if (error) {
+      setSettings(previous)
+      setError('알림 설정을 저장하지 못했습니다.')
+    }
+    return { error: error?.message ?? null }
   }
 
-  return { settings, loaded, updateSetting }
+  return { settings, loaded, saving, error, updateSetting }
 }
 
 // ── Check if user saved a proposal ──────────────────────────
@@ -622,11 +663,8 @@ export async function checkUserSaved(proposalId: string, userId: string): Promis
 // ── Saves count for a proposal ───────────────────────────────
 export async function getSavesCount(proposalId: string): Promise<number> {
   if (!isUuid(proposalId)) return 0
-  const { count } = await supabase
-    .from('saves')
-    .select('*', { count: 'exact', head: true })
-    .eq('proposal_id', proposalId)
-  return count ?? 0
+  const { data } = await supabase.rpc('get_proposal_save_count', { p_proposal_id: proposalId })
+  return Number(data ?? 0)
 }
 
 // ── Delete a proposal ────────────────────────────────────────
@@ -636,6 +674,7 @@ export async function deleteProposal(proposalId: string) {
     .from('proposals')
     .delete()
     .eq('id', proposalId)
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -652,6 +691,7 @@ export async function updateProposal(
     .from('proposals')
     .update(validated.value)
     .eq('id', proposalId)
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }
 
@@ -671,5 +711,13 @@ export async function upsertOfficialReply(
       { proposal_id: proposalId, content: validated.value.content, signed_by: validated.value.signedBy },
       { onConflict: 'proposal_id' },
     )
+  if (!error) announceDataChanged()
+  return { error: error?.message ?? null }
+}
+
+export async function adminDeleteProposal(proposalId: string) {
+  if (!isUuid(proposalId)) return { error: 'Invalid request.' }
+  const { error } = await supabase.rpc('delete_proposal_as_admin', { p_proposal_id: proposalId })
+  if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }

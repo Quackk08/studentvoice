@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select('*')
       .eq('id', userId)
       .single()
-    if (data) setProfile(data as Profile)
+    setProfile(data ? data as Profile : null)
   }
 
   const refreshProfile = async () => {
@@ -41,21 +41,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // 이전에 sessionStorage를 storage로 사용했던 stale 세션 키를 정리.
-    // 현재는 localStorage를 사용하므로 sessionStorage의 Supabase 토큰은 불필요.
-    try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? ''
-      const projectRef = supabaseUrl.match(/\/\/([^.]+)\.supabase\.co/)?.[1]
-      if (projectRef) {
-        window.sessionStorage.removeItem(`sb-${projectRef}-auth-token`)
-      }
-    } catch { /* ignore */ }
-
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
+      if (session?.user) await fetchProfile(session.user.id)
+      else setProfile(null)
       setLoading(false)
     })
 
@@ -64,11 +55,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
-        fetchProfile(session.user.id)
+        setLoading(true)
+        // Auth 콜백 안에서 다른 Supabase 요청을 직접 기다리지 않는다.
+        window.setTimeout(() => {
+          fetchProfile(session.user.id).finally(() => setLoading(false))
+        }, 0)
       } else {
         setProfile(null)
+        setLoading(false)
       }
-      setLoading(false)
     })
 
     return () => subscription.unsubscribe()
@@ -80,7 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
-      if (error) return { error: error.message }
+      if (error) {
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          return { error: '이메일 본인 인증을 먼저 완료해주세요.' }
+        }
+        return { error: error.message }
+      }
       if (!isEmailVerified(data.user)) {
         await supabase.auth.signOut()
         return { error: '이메일 본인 인증을 먼저 완료해주세요.' }
@@ -111,6 +111,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const name = params.name ? normalizeText(params.name, 40) : undefined
     const grade = params.grade && params.grade >= 1 && params.grade <= 3 ? params.grade : undefined
     const classNum = params.classNum && params.classNum >= 1 && params.classNum <= 20 ? params.classNum : undefined
+    if (!name || name.length < 2 || !grade || !classNum) {
+      return { error: '이름, 학년, 반 정보를 모두 올바르게 입력해주세요.' }
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,

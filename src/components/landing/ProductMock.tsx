@@ -56,7 +56,7 @@ export default function ProductMock() {
     >
       {/* Mock header bar */}
       <div
-        className="bg-white border-b px-6 py-3.5 flex items-center gap-4"
+        className="bg-white border-b px-3 sm:px-6 py-3.5 flex items-center gap-4"
         style={{ borderBottom: `1px solid ${COLORS.line}` }}
       >
         <div className="flex items-center gap-1.5">
@@ -65,7 +65,7 @@ export default function ProductMock() {
           </div>
           <span className="text-sm font-bold text-ink">학생의 목소리</span>
         </div>
-        <nav className="flex gap-5 text-sm text-ink-sub">
+        <nav className="hidden sm:flex gap-5 text-sm text-ink-sub">
           <span className="font-bold text-ink" style={{ borderBottom: `2px solid ${COLORS.brand}`, paddingBottom: '2px' }}>홈</span>
           <span>답변 · 아카이브</span>
           <span>의견 제안</span>
@@ -78,7 +78,7 @@ export default function ProductMock() {
       </div>
 
       {/* Mock content */}
-      <div className="p-7" style={{ background: COLORS.bg }}>
+      <div className="p-3 sm:p-7" style={{ background: COLORS.bg }}>
         {/* Popular section */}
         <div
           className="text-2xs font-bold tracking-wide mb-3"
@@ -86,7 +86,7 @@ export default function ProductMock() {
         >
           인기 이슈 — 30표 달성 시 학생회로 자동 전달
         </div>
-        <div className="grid grid-cols-1.3/1/1 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <MiniCard title="도서관 4층 자습실에 콘센트 추가 설치" cat="#시설" votes={28} badge="🔥 2표 남음" />
           <MiniCard title="월 1회 다문화 메뉴 도입 제안" cat="#급식" votes={24} />
           <MiniCard title="동절기 후드티 착용 허용 (12-2월)" cat="#교칙" votes={21} />
@@ -122,12 +122,12 @@ export default function ProductMock() {
               </span>
               <span className="text-sm font-bold text-ink flex-1 tracking-tight">{r.t}</span>
               <span
-                className="text-2xs px-2 py-0.75 rounded-full font-bold whitespace-nowrap"
+                className="hidden sm:inline text-2xs px-2 py-0.75 rounded-full font-bold whitespace-nowrap"
                 style={{ background: r.sb, color: r.st }}
               >
                 {r.s}
               </span>
-              <span className="text-sm text-ink-muted">{r.v}표</span>
+              <span className="hidden sm:inline text-sm text-ink-muted">{r.v}표</span>
             </div>
           ))}
         </div>

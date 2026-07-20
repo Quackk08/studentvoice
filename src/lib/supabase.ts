@@ -2,6 +2,42 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? 'https://placeholder.supabase.co'
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'placeholder'
+const REMEMBER_SESSION_KEY = 'studentvoice.remember-session'
+
+function shouldRememberSession() {
+  return typeof window !== 'undefined' && window.localStorage.getItem(REMEMBER_SESSION_KEY) === 'true'
+}
+
+export function setRememberSession(remember: boolean) {
+  if (typeof window === 'undefined') return
+  if (remember) window.localStorage.setItem(REMEMBER_SESSION_KEY, 'true')
+  else window.localStorage.removeItem(REMEMBER_SESSION_KEY)
+}
+
+export function getRememberSession() {
+  return shouldRememberSession()
+}
+
+const authStorage = typeof window === 'undefined' ? undefined : {
+  getItem(key: string) {
+    if (shouldRememberSession()) return window.localStorage.getItem(key)
+    // localStorage fallback preserves sessions created before this setting existed.
+    return window.sessionStorage.getItem(key) ?? window.localStorage.getItem(key)
+  },
+  setItem(key: string, value: string) {
+    if (shouldRememberSession()) {
+      window.localStorage.setItem(key, value)
+      window.sessionStorage.removeItem(key)
+    } else {
+      window.sessionStorage.setItem(key, value)
+      window.localStorage.removeItem(key)
+    }
+  },
+  removeItem(key: string) {
+    window.localStorage.removeItem(key)
+    window.sessionStorage.removeItem(key)
+  },
+}
 
 // HTTP 헤더 값은 ISO-8859-1 범위(0x00–0xFF)만 허용됨.
 // supabase-js / postgrest-js 내부에서 new Headers() 생성 시 한글 등
@@ -50,7 +86,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     fetch: safeFetch,
   },
   auth: {
-    storage: typeof window === 'undefined' ? undefined : window.localStorage,
+    storage: authStorage,
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,

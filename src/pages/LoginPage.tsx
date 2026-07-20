@@ -4,7 +4,7 @@ import MicMark from '../components/shared/MicMark'
 import Btn from '../components/shared/Btn'
 import { useAuth, isEmailVerified } from '../contexts/AuthContext'
 import { isSchoolEmail, normalizeText, validatePassword } from '../lib/security'
-import { supabase } from '../lib/supabase'
+import { getRememberSession, setRememberSession, supabase } from '../lib/supabase'
 import { COLORS } from '../tokens/tokens'
 
 // ── InputField ──────────────────────────────────────────────
@@ -36,6 +36,7 @@ function InputField({ label, type = 'text', placeholder, value, hint, suffix, er
         }}
       >
         <input
+          aria-label={label}
           type={type}
           placeholder={placeholder}
           value={value}
@@ -68,8 +69,11 @@ function GradeClassPicker({
         <div style={{ display: 'flex', gap: 6 }}>
           {[1, 2, 3].map(g => (
             <button
+              type="button"
               key={g}
               onClick={() => onGrade(g)}
+              aria-pressed={grade === g}
+              aria-label={`${g}학년`}
               style={{
                 width: 44, height: 44, borderRadius: 10, border: 'none',
                 background: grade === g ? COLORS.ink : COLORS.surfaceAlt,
@@ -95,6 +99,7 @@ function GradeClassPicker({
           }}
         >
           <input
+            aria-label="반"
             type="number"
             placeholder="반 번호"
             value={classNum}
@@ -116,6 +121,8 @@ function GradeClassPicker({
 function EyeToggle({ show, onToggle }: { show: boolean; onToggle: () => void }) {
   return (
     <button
+      type="button"
+      aria-label={show ? '비밀번호 숨기기' : '비밀번호 보기'}
       onClick={onToggle}
       style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, display: 'flex', flexShrink: 0 }}
     >
@@ -210,7 +217,8 @@ export default function LoginPage() {
       : null,
   )
   const [isLoading, setIsLoading] = useState(false)
-  const [remember, setRemember]   = useState(false)
+  const [remember, setRemember]   = useState(getRememberSession)
+  const [resendStatus, setResendStatus] = useState<string | null>(null)
 
   const switchMode = (m: 'login' | 'signup' | 'forgot') => {
     setMode(m)
@@ -241,6 +249,7 @@ export default function LoginPage() {
     if (!normalizedEmail || !password) { setErrorMsg('이메일과 비밀번호를 입력해주세요.'); return }
     setIsLoading(true); setErrorMsg(null)
     try {
+      setRememberSession(remember)
       const { error } = await signIn(normalizedEmail, password)
       if (error) {
         setErrorMsg(error.includes('본인 인증') ? error : '이메일 또는 비밀번호가 올바르지 않습니다.')
@@ -263,15 +272,19 @@ export default function LoginPage() {
     if (!isSchoolEmail(normalizedEmail)) { setErrorMsg('대전대신고 이메일(@dshs.kr)만 가입할 수 있습니다.'); return }
     if (passwordError) { setErrorMsg(passwordError); return }
     if (password !== confirmPw) { setErrorMsg('비밀번호와 비밀번호 확인이 일치하지 않습니다.'); return }
+    if (normalizeText(name, 40).length < 2) { setErrorMsg('이름을 2자 이상 입력해주세요.'); return }
+    if (!grade) { setErrorMsg('학년을 선택해주세요.'); return }
+    const parsedClass = Number(classNum)
+    if (!Number.isInteger(parsedClass) || parsedClass < 1 || parsedClass > 20) { setErrorMsg('반을 1~20 사이로 입력해주세요.'); return }
 
     setIsLoading(true)
     try {
       const { error, needsConfirmation } = await signUp({
         email: normalizedEmail,
         password,
-        name: normalizeText(name, 40) || undefined,
-        grade: grade ?? undefined,
-        classNum: classNum ? Number(classNum) : undefined,
+        name: normalizeText(name, 40),
+        grade,
+        classNum: parsedClass,
       })
 
       if (error) {
@@ -294,8 +307,23 @@ export default function LoginPage() {
     setSuccessMsg('본인 인증 메일을 보냈습니다. 학교 이메일함에서 인증 링크를 클릭한 뒤 로그인해주세요.')
   }
 
+  const handleResendVerification = async () => {
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!isSchoolEmail(normalizedEmail)) return
+    setIsLoading(true)
+    setResendStatus(null)
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: normalizedEmail,
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+    })
+    setIsLoading(false)
+    setResendStatus(error ? '인증 메일을 다시 보내지 못했습니다. 잠시 후 시도해주세요.' : '인증 메일을 다시 보냈습니다.')
+  }
+
   return (
     <div
+      className="login-shell"
       style={{
         minHeight: '100vh',
         display: 'grid',
@@ -308,6 +336,7 @@ export default function LoginPage() {
     >
       {/* ── Left visual ── */}
       <div
+        className="login-visual"
         style={{
           background: COLORS.bg,
           padding: '56px 56px 48px',
@@ -355,6 +384,7 @@ export default function LoginPage() {
 
       {/* ── Right form ── */}
       <div
+        className="login-form-pane"
         style={{
           display: 'grid', placeItems: 'center', padding: 48,
           overflowY: 'auto',
@@ -439,37 +469,31 @@ export default function LoginPage() {
                   alignItems: 'center', fontSize: 12, color: COLORS.inkSub,
                 }}
               >
-                <label
-                  style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}
-                  onClick={() => setRemember(!remember)}
-                >
-                  <span
-                    style={{
-                      width: 14, height: 14, borderRadius: 3,
-                      border: `1.4px solid ${remember ? COLORS.brand : COLORS.inkMuted}`,
-                      background: remember ? COLORS.brand : 'transparent',
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    {remember && <span style={{ color: '#fff', fontSize: 9, fontWeight: 700 }}>✓</span>}
-                  </span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={event => setRemember(event.target.checked)}
+                  />
                   로그인 상태 유지
                 </label>
-                <span
+                <button
+                  type="button"
                   onClick={() => switchMode('signup')}
-                  style={{ color: COLORS.brand, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ color: COLORS.brand, fontWeight: 600, cursor: 'pointer', border: 0, background: 'transparent', padding: 0 }}
                 >
                   계정이 없으신가요? →
-                </span>
+                </button>
               </div>
 
               <div style={{ marginTop: 10, textAlign: 'right' }}>
-                <span
+                <button
+                  type="button"
                   onClick={() => switchMode('forgot')}
-                  style={{ fontSize: 12, color: COLORS.inkMuted, cursor: 'pointer', textDecoration: 'underline' }}
+                  style={{ fontSize: 12, color: COLORS.inkMuted, cursor: 'pointer', textDecoration: 'underline', border: 0, background: 'transparent', padding: 0 }}
                 >
                   비밀번호를 잊으셨나요?
-                </span>
+                </button>
               </div>
             </>
           )}
@@ -491,8 +515,17 @@ export default function LoginPage() {
                 <div style={{ marginTop: 28 }}>
                   <SuccessBanner msg={successMsg} />
                   <Btn
-                    variant="outline" size="md" full
+                    variant="brand" size="md" full
                     style={{ marginTop: 16 }}
+                    onClick={handleResendVerification}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? '재발송 중…' : '인증 메일 다시 보내기'}
+                  </Btn>
+                  {resendStatus && <div role="status" style={{ marginTop: 10, fontSize: 12, color: resendStatus.includes('못했습니다') ? COLORS.warn : COLORS.brand }}>{resendStatus}</div>}
+                  <Btn
+                    variant="outline" size="md" full
+                    style={{ marginTop: 10 }}
                     onClick={() => switchMode('login')}
                   >
                     로그인 화면으로
@@ -535,7 +568,7 @@ export default function LoginPage() {
                     {/* Divider */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ flex: 1, height: 1, background: COLORS.lineSoft }} />
-                      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>선택 정보</span>
+                      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>필수 정보</span>
                       <div style={{ flex: 1, height: 1, background: COLORS.lineSoft }} />
                     </div>
 

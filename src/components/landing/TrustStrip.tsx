@@ -13,17 +13,17 @@ export default function TrustStrip() {
 
   return (
     <div
-      className="py-6 px-15"
+      className="py-6 px-4 sm:px-15"
       style={{
         background: COLORS.surfaceRaised,
         borderTop: `1px solid ${COLORS.line}`,
         borderBottom: `1px solid ${COLORS.line}`,
       }}
     >
-      <div className="flex items-center gap-12 justify-center">
-        <span className="text-sm text-ink-muted font-medium tracking-widest">학교 공식 연계</span>
+      <div className="grid grid-cols-2 sm:flex items-center gap-6 sm:gap-12 justify-center">
+        <span className="col-span-2 text-center text-sm text-ink-muted font-medium tracking-widest">학교 공식 연계</span>
         {items.map((s, i) => (
-          <div key={s.l} className="flex items-center gap-12">
+          <div key={s.l} className="flex items-center justify-center gap-6 sm:gap-12">
             {i > 0 && <div className="w-0.25 h-6 bg-line" />}
             <div className="text-center">
               <div

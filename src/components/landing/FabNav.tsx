@@ -17,7 +17,7 @@ export default function FabNav() {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-20 h-15 px-10 flex items-center gap-0"
+      className="fixed top-0 left-0 right-0 z-20 h-15 px-4 sm:px-10 flex items-center gap-0"
       style={{
         background: 'rgba(255,255,255,0.88)',
         backdropFilter: 'blur(12px)',
@@ -25,34 +25,36 @@ export default function FabNav() {
       }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+      <button type="button" aria-label="페이지 맨 위로" className="flex items-center gap-2 cursor-pointer border-0 bg-transparent p-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
         <div className="w-6.5 h-6.5 rounded bg-brand flex items-center justify-center">
           <MicMark size={14} color="#fff" />
         </div>
-        <span className="text-lg font-bold text-ink tracking-tight">학생의 목소리</span>
-      </div>
+        <span className="text-sm sm:text-lg font-bold text-ink tracking-tight whitespace-nowrap">학생의 목소리</span>
+      </button>
 
       {/* Nav links */}
-      <div className="flex gap-0.5 ml-10">
+      <div className="hidden md:flex gap-0.5 ml-10">
         {NAV_ANCHORS.map(({ label, id }) => (
-          <span
+          <button
+            type="button"
             key={id}
             onClick={() => scrollTo(id)}
-            className="text-2xs text-ink-sub font-medium px-3.5 py-1.5 rounded-lg cursor-pointer tracking-tight hover:text-ink"
+            className="text-2xs text-ink-sub font-medium px-3.5 py-1.5 rounded-lg cursor-pointer tracking-tight hover:text-ink border-0 bg-transparent"
           >
             {label}
-          </span>
+          </button>
         ))}
       </div>
 
       {/* Right actions */}
       <div className="ml-auto flex items-center gap-2.5">
-        <span
+        <button
+          type="button"
           onClick={() => navigate('/login')}
-          className="text-2xs text-ink-sub font-medium cursor-pointer px-3 hover:text-ink"
+          className="hidden sm:inline-flex text-2xs text-ink-sub font-medium cursor-pointer px-3 hover:text-ink border-0 bg-transparent"
         >
           로그인
-        </span>
+        </button>
         <button
           onClick={() => navigate('/login')}
           className="px-4 py-2 rounded-lg bg-ink text-white text-2xs font-bold cursor-pointer tracking-tight hover:opacity-90"

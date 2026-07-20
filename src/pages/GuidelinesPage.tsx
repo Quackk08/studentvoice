@@ -25,7 +25,7 @@ const RULES = [
   {
     ok: false,
     title: '개인정보, 비속어, 허위사실은 작성할 수 없습니다.',
-    sub: '신고 5회 누적 시 자동 비공개되며, 운영진이 검토합니다.',
+    sub: '신고 3회 이상 누적 시 운영진의 검토 대상으로 표시됩니다.',
   },
 ]
 
@@ -34,14 +34,21 @@ export default function GuidelinesPage() {
   const { user, refreshProfile } = useAuth()
   const [agreed, setAgreed] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleAgree = async () => {
     if (!agreed || !user) return
     setSaving(true)
-    await supabase
+    setError(null)
+    const { error } = await supabase
       .from('profiles')
       .update({ agreed_to_guidelines: true })
       .eq('id', user.id)
+    if (error) {
+      setError('동의 내용을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.')
+      setSaving(false)
+      return
+    }
     await refreshProfile()
     navigate('/home')
   }
@@ -165,27 +172,12 @@ export default function GuidelinesPage() {
               color: COLORS.ink,
               cursor: 'pointer',
             }}
-            onClick={() => setAgreed(!agreed)}
           >
-            <span
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 5,
-                background: agreed ? COLORS.brand : COLORS.surface,
-                border: `1px solid ${agreed ? COLORS.brand : COLORS.line}`,
-                display: 'grid',
-                placeItems: 'center',
-                color: '#fff',
-                fontSize: 11,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              {agreed ? '✓' : ''}
-            </span>
+            <input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} />
             위 내용을 읽었으며 가이드라인에 동의합니다.
           </label>
+
+          {error && <p role="alert" style={{ fontSize: 12, color: COLORS.warn, margin: '12px 0 0' }}>{error}</p>}
 
           <Btn
             variant="brand"

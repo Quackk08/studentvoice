@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
 import MicMark from '../components/shared/MicMark'
@@ -12,6 +12,7 @@ export default function ConfirmPage() {
   const [searchParams] = useSearchParams()
   const [state, setState] = useState<State>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const tokenVerificationStarted = useRef(false)
 
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type') ?? 'signup'
@@ -20,10 +21,6 @@ export default function ConfirmPage() {
   // 임의 문자열이 verifyOtp에 전달되는 것을 차단.
   const TOKEN_HASH_RE = /^[0-9a-f]{1,128}$/i
   const isValidToken = tokenHash !== null && TOKEN_HASH_RE.test(tokenHash)
-
-  useEffect(() => {
-    if (!isValidToken) navigate('/login', { replace: true })
-  }, [isValidToken, navigate])
 
   const handleConfirm = async () => {
     if (!isValidToken || !tokenHash) return
@@ -51,6 +48,51 @@ export default function ConfirmPage() {
       setState('error')
     }
   }
+
+  useEffect(() => {
+    if (tokenHash) {
+      if (tokenVerificationStarted.current) return
+      tokenVerificationStarted.current = true
+      if (isValidToken) handleConfirm()
+      else {
+        setErrorMsg('인증 링크 형식이 올바르지 않습니다.')
+        setState('error')
+      }
+      return
+    }
+
+    let finished = false
+    let redirectTimer: ReturnType<typeof setTimeout> | undefined
+    setState('loading')
+
+    const finishFromSession = async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
+      if (finished || !session?.user?.email_confirmed_at) return
+      finished = true
+      await supabase.auth.signOut()
+      setState('success')
+      redirectTimer = setTimeout(() => navigate('/login?confirmed=true'), 2500)
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      finishFromSession(session)
+    })
+    supabase.auth.getSession().then(({ data }) => finishFromSession(data.session))
+
+    const fallbackTimer = setTimeout(() => {
+      if (!finished) {
+        finished = true
+        setErrorMsg('인증 링크가 만료됐거나 이미 사용되었습니다.')
+        setState('error')
+      }
+    }, 5000)
+
+    return () => {
+      finished = true
+      clearTimeout(fallbackTimer)
+      if (redirectTimer) clearTimeout(redirectTimer)
+      subscription.unsubscribe()
+    }
+  }, [isValidToken, tokenHash, type])
 
   return (
     <div

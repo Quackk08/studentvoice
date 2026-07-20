@@ -2,8 +2,8 @@ import MicMark from './MicMark'
 
 export default function Footer() {
   return (
-    <footer className="bg-footer-bg text-white py-10 px-15">
-      <div className="flex items-start gap-20">
+    <footer className="bg-footer-bg text-white py-10 px-5 sm:px-15">
+      <div className="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap items-start gap-8 xl:gap-20">
         <div className="flex items-center gap-2.5 min-w-42 flex-shrink-0">
           <MicMark size={28} color="#fff" />
           <div className="leading-snug">
@@ -36,7 +36,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="ml-auto flex flex-col items-end justify-end self-stretch text-sm flex-shrink-0 gap-0.5 whitespace-nowrap">
+        <div className="md:ml-auto flex flex-col items-start md:items-end justify-end self-stretch text-sm flex-shrink-0 gap-0.5 whitespace-nowrap">
           <span>site made by <a href="https://github.com/Quackk08" target="_blank" rel="noopener noreferrer" className="font-bold hover:underline" style={{ color: 'inherit' }}>Quackk08</a></span>
           <span>© 2026 <strong className="font-bold">ACT.</strong> All rights reserved.</span>
         </div>
