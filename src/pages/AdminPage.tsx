@@ -73,8 +73,8 @@ function KpiCard({
 export default function AdminPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
-  const { data: queue, loading: queueLoading, refetch: refetchQueue } = useAdminQueue()
-  const { data: reported, loading: repLoading, refetch: refetchReported } = useReportedProposals()
+  const { data: queue, loading: queueLoading, error: queueError, refetch: refetchQueue } = useAdminQueue()
+  const { data: reported, loading: repLoading, error: reportError, refetch: refetchReported } = useReportedProposals()
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -156,6 +156,20 @@ export default function AdminPage() {
 
       {/* Queue + Reports */}
       <section className="responsive-section" style={{ padding: '24px 48px 80px', background: COLORS.bg }}>
+        {(queueError || reportError) && (
+          <div role="alert" style={{ maxWidth: 1240, margin: '0 auto 14px', padding: '14px 16px', borderRadius: 10, background: COLORS.warnSoft, color: COLORS.warn, fontSize: 12 }}>
+            <div style={{ fontWeight: 700 }}>관리자 데이터를 불러오지 못했습니다.</div>
+            {queueError && <div style={{ marginTop: 5 }}>선정 안건: {queueError}</div>}
+            {reportError && <div style={{ marginTop: 5 }}>신고 게시글: {reportError}</div>}
+            <button
+              type="button"
+              onClick={() => Promise.all([refetchQueue(), refetchReported()])}
+              style={{ marginTop: 10, padding: '6px 10px', borderRadius: 6, border: `1px solid ${COLORS.warn}`, background: 'transparent', color: COLORS.warn, fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+            >
+              다시 불러오기
+            </button>
+          </div>
+        )}
         {actionError && (
           <div role="alert" style={{ maxWidth: 1240, margin: '0 auto 14px', padding: '12px 14px', borderRadius: 10, background: COLORS.warnSoft, color: COLORS.warn, fontSize: 12 }}>
             {actionError}

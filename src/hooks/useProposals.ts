@@ -51,15 +51,19 @@ function isMissingProposalFeed(error: ProposalQueryResult['error']) {
     ))
 }
 
-function isMissingCreateProposalRpc(error: ProposalQueryResult['error']) {
+function isMissingRpc(error: ProposalQueryResult['error'], rpcName: string) {
   if (!error) return false
   const detail = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
   return detail.includes('pgrst202')
-    || (detail.includes('create_proposal') && (
+    || (detail.includes(rpcName.toLowerCase()) && (
       detail.includes('schema cache')
       || detail.includes('could not find')
       || detail.includes('not exist')
     ))
+}
+
+function isMissingCreateProposalRpc(error: ProposalQueryResult['error']) {
+  return isMissingRpc(error, 'create_proposal')
 }
 
 function normalizeProposalRow(row: Record<string, unknown>): Proposal {
@@ -548,16 +552,23 @@ export async function reportProposal(proposalId: string, reporterId: string, rea
 export function useAdminQueue() {
   const [data, setData] = useState<Proposal[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(async () => {
     setLoading(true)
-    const { data } = await queryProposalSource((source, columns) => supabase
+    const { data, error } = await queryProposalSource((source, columns) => supabase
       .from(source)
       .select(columns)
       .in('status', SELECTED_PROPOSAL_STATUSES)
       .gte('vote_count', 30)
       .order('vote_count', { ascending: false }))
-    setData((data ?? []) as Proposal[])
+    if (error) {
+      setData([])
+      setError(error.message ?? '선정 안건을 불러오지 못했습니다.')
+    } else {
+      setData((data ?? []) as Proposal[])
+      setError(null)
+    }
     setLoading(false)
   }, [])
 
@@ -566,28 +577,59 @@ export function useAdminQueue() {
     return subscribeToDataChanges(refetch)
   }, [refetch])
 
-  return { data, loading, refetch }
+  return { data, loading, error, refetch }
 }
 
 // ── Admin: update proposal status via RPC ──
 export async function adminUpdateStatus(proposalId: string, newStatus: string) {
   if (!isUuid(proposalId) || !isProposalStatus(newStatus)) return { error: 'Invalid request.' }
-  const { error } = await supabase
+  const { error: rpcError } = await supabase
     .rpc('update_proposal_status', { proposal_id: proposalId, new_status: newStatus })
-  if (!error) announceDataChanged()
-  return { error: error?.message ?? null }
+
+  const detail = `${rpcError?.code ?? ''} ${rpcError?.message ?? ''}`.toLowerCase()
+  const needsLegacyFallback = isMissingRpc(rpcError, 'update_proposal_status')
+    || (newStatus === 'discussing' && detail.includes('invalid proposal status'))
+
+  if (needsLegacyFallback) {
+    const { data, error } = await supabase
+      .from('proposals')
+      .update({ status: newStatus })
+      .eq('id', proposalId)
+      .select('id')
+      .maybeSingle()
+
+    if (error) return { error: error.message }
+    if (!data) return { error: '변경 권한이 없거나 안건을 찾을 수 없습니다.' }
+    announceDataChanged()
+    return { error: null }
+  }
+
+  if (!rpcError) announceDataChanged()
+  return { error: rpcError?.message ?? null }
 }
 
 // ── Admin: fetch reported proposals ──
 export function useReportedProposals() {
   const [data, setData] = useState<{ proposal: Proposal; reportCount: number; reason: string }[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetch = useCallback(async () => {
     setLoading(true)
-    const { data: reports, error } = await supabase.rpc('get_reported_proposals')
+    const { data: reports, error: reportsError } = await supabase.rpc('get_reported_proposals')
 
-    if (error || !reports?.length) { setData([]); setLoading(false); return }
+    if (reportsError) {
+      setData([])
+      setError(reportsError.message ?? '신고된 게시글을 불러오지 못했습니다.')
+      setLoading(false)
+      return
+    }
+    if (!reports?.length) {
+      setData([])
+      setError(null)
+      setLoading(false)
+      return
+    }
 
     const grouped: Record<string, { count: number; reason: string }> = {}
     for (const r of reports) {
@@ -597,10 +639,17 @@ export function useReportedProposals() {
     }
 
     const ids = Object.keys(grouped)
-    const { data: proposals } = await queryProposalSource((source, columns) => supabase
+    const { data: proposals, error: proposalsError } = await queryProposalSource((source, columns) => supabase
       .from(source)
       .select(columns)
       .in('id', ids))
+
+    if (proposalsError) {
+      setData([])
+      setError(proposalsError.message ?? '신고된 안건 원문을 불러오지 못했습니다.')
+      setLoading(false)
+      return
+    }
 
     const result = ((proposals ?? []) as Proposal[]).map(p => ({
       proposal: p as Proposal,
@@ -609,6 +658,7 @@ export function useReportedProposals() {
     })).sort((a, b) => b.reportCount - a.reportCount)
 
     setData(result)
+    setError(null)
     setLoading(false)
   }, [])
 
@@ -617,16 +667,30 @@ export function useReportedProposals() {
     return subscribeToDataChanges(fetch)
   }, [fetch])
 
-  return { data, loading, refetch: fetch }
+  return { data, loading, error, refetch: fetch }
 }
 
 // ── Admin: dismiss all reports for a proposal ────────────────
 export async function dismissReport(proposalId: string): Promise<{ error: string | null }> {
   if (!isUuid(proposalId)) return { error: 'Invalid request.' }
-  const { error } = await supabase
+  const { error: rpcError } = await supabase
     .rpc('dismiss_proposal_reports', { p_proposal_id: proposalId })
-  if (!error) announceDataChanged()
-  return { error: error?.message ?? null }
+
+  if (isMissingRpc(rpcError, 'dismiss_proposal_reports')) {
+    const { data, error } = await supabase
+      .from('reports')
+      .delete()
+      .eq('proposal_id', proposalId)
+      .select('id')
+
+    if (error) return { error: error.message }
+    if (!data?.length) return { error: '신고 해제 권한이 없거나 이미 처리된 신고입니다.' }
+    announceDataChanged()
+    return { error: null }
+  }
+
+  if (!rpcError) announceDataChanged()
+  return { error: rpcError?.message ?? null }
 }
 
 // ── Save/unsave ──
@@ -811,7 +875,22 @@ export async function upsertOfficialReply(
 
 export async function adminDeleteProposal(proposalId: string) {
   if (!isUuid(proposalId)) return { error: 'Invalid request.' }
-  const { error } = await supabase.rpc('delete_proposal_as_admin', { p_proposal_id: proposalId })
-  if (!error) announceDataChanged()
-  return { error: error?.message ?? null }
+  const { error: rpcError } = await supabase.rpc('delete_proposal_as_admin', { p_proposal_id: proposalId })
+
+  if (isMissingRpc(rpcError, 'delete_proposal_as_admin')) {
+    const { data, error } = await supabase
+      .from('proposals')
+      .delete()
+      .eq('id', proposalId)
+      .select('id')
+      .maybeSingle()
+
+    if (error) return { error: error.message }
+    if (!data) return { error: '삭제 권한이 없거나 안건을 찾을 수 없습니다.' }
+    announceDataChanged()
+    return { error: null }
+  }
+
+  if (!rpcError) announceDataChanged()
+  return { error: rpcError?.message ?? null }
 }
