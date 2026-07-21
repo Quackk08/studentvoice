@@ -72,7 +72,11 @@ function normalizeAdminProposal(value: unknown): AdminProposal {
   const row = asRecord(value) ?? {}
   const profileValue = Array.isArray(row.author_profile) ? row.author_profile[0] : row.author_profile
   const profile = asRecord(profileValue)
-  const replies = Array.isArray(row.official_replies) ? row.official_replies : []
+  const replies = Array.isArray(row.official_replies)
+    ? row.official_replies
+    : row.official_replies && typeof row.official_replies === 'object'
+      ? [row.official_replies]
+      : []
   const firstReply = asRecord(replies[0])
   const status = asString(row.status, 'active') as ProposalStatus
   const moderation = asString(

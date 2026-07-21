@@ -6,8 +6,9 @@ interface OfficialReplyCardProps {
   compact?: boolean
 }
 
-export function getDisplayableOfficialReply(replies: OfficialReply[] | undefined) {
-  return replies?.find(reply => (
+export function getDisplayableOfficialReply(replies: OfficialReply[] | OfficialReply | null | undefined) {
+  const replyList = Array.isArray(replies) ? replies : replies ? [replies] : []
+  return replyList.find(reply => (
     reply.content.trim().length >= 3
     && reply.signed_by.trim().length >= 2
   )) ?? null

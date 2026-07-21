@@ -11,6 +11,7 @@ import {
 import type {
   Proposal,
   ProposalCategory,
+  OfficialReply,
   Comment,
   NotificationSettings,
   Notification,
@@ -71,6 +72,12 @@ function normalizeProposalRow(row: Record<string, unknown>): Proposal {
   const relatedProfile = Array.isArray(row.author_profile)
     ? row.author_profile[0] as Record<string, unknown> | undefined
     : row.author_profile as Record<string, unknown> | null | undefined
+  const replyValue = row.official_replies
+  const officialReplies = Array.isArray(replyValue)
+    ? replyValue as OfficialReply[]
+    : replyValue && typeof replyValue === 'object'
+      ? [replyValue as OfficialReply]
+      : []
 
   return {
     ...row,
@@ -78,7 +85,7 @@ function normalizeProposalRow(row: Record<string, unknown>): Proposal {
     author_grade: row.author_grade ?? relatedProfile?.grade ?? null,
     author_class: row.author_class ?? relatedProfile?.class ?? null,
     author_email: row.author_email ?? relatedProfile?.email ?? null,
-    official_replies: row.official_replies ?? [],
+    official_replies: officialReplies,
   } as Proposal
 }
 
