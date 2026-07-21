@@ -47,7 +47,7 @@ function EmptyState() {
     >
       <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
       <div style={{ fontWeight: 600, marginBottom: 6, color: COLORS.inkSub }}>아직 처리된 안건이 없습니다</div>
-      <div>30표가 모인 안건이 처리되면 여기에 표시됩니다.</div>
+      <div>학생회 답변이 등록되거나 안건이 선정되면 여기에 표시됩니다.</div>
     </div>
   )
 }
@@ -65,7 +65,7 @@ export default function ArchivePage() {
   const tabCounts: Record<FilterId, number> = {
     all:  allData.length,
     done: allData.filter(a => a.status === 'done').length,
-    wip:  allData.filter(a => a.status === 'selected' || a.status === 'discussing').length,
+    wip:  allData.filter(a => a.status === 'active' || a.status === 'selected' || a.status === 'discussing').length,
     hold: allData.filter(a => a.status === 'rejected').length,
   }
 
@@ -73,7 +73,7 @@ export default function ArchivePage() {
   const tabFiltered =
     activeTab === 'all'  ? allData :
     activeTab === 'done' ? allData.filter(a => a.status === 'done') :
-    activeTab === 'wip'  ? allData.filter(a => a.status === 'selected' || a.status === 'discussing') :
+    activeTab === 'wip'  ? allData.filter(a => a.status === 'active' || a.status === 'selected' || a.status === 'discussing') :
                            allData.filter(a => a.status === 'rejected')
 
   // 검색 필터
@@ -110,7 +110,7 @@ export default function ArchivePage() {
             maxWidth: 560, lineHeight: 1.65,
           }}
         >
-          30표 이상 모인 안건에 대해 학생회와 학교가 어떻게 답했는지를 확인할 수 있습니다.
+          학생회가 먼저 답변한 안건과 30표 이상 선정된 안건의 처리 과정을 확인할 수 있습니다.
         </p>
 
         {/* Filter tabs */}

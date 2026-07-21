@@ -10,7 +10,7 @@ export function getDisplayableOfficialReply(
   replies: OfficialReply[] | OfficialReply | null | undefined,
   proposalStatus: ProposalStatus | undefined,
 ) {
-  if (!proposalStatus || proposalStatus === 'active' || proposalStatus === 'blinded') return null
+  if (!proposalStatus || proposalStatus === 'blinded') return null
   const replyList = Array.isArray(replies) ? replies : replies ? [replies] : []
   return replyList.find(reply => (
     reply.content.trim().length >= 3

@@ -392,7 +392,7 @@ export async function publishAdminOfficialReply(params: {
   proposalId: string
   content: string
   signedBy: string
-  newStatus: 'discussing' | 'done' | 'rejected'
+  newStatus: 'active' | 'discussing' | 'done' | 'rejected'
   publicMessage: string
   internalNote?: string
 }) {

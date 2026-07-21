@@ -30,7 +30,7 @@ import type {
 type AdminSection = 'overview' | 'proposals' | 'reports' | 'members' | 'activity'
 type ProposalSort = 'updated' | 'votes' | 'reports' | 'oldest'
 type ConfirmAction = AdminModerationAction | 'resolve_reports'
-type OfficialReplyStatus = 'discussing' | 'done' | 'rejected'
+type OfficialReplyStatus = 'active' | 'discussing' | 'done' | 'rejected'
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; description: string }[] = [
   { id: 'overview', label: '운영 현황', description: '오늘 처리할 업무' },
@@ -51,7 +51,7 @@ const SCOPE_TABS: { id: AdminProposalScope; label: string }[] = [
 
 const CATEGORIES: ProposalCategory[] = ['#시설', '#급식', '#교칙', '#학사', '#수업', '#복지', '#기타']
 const STATUS_OPTIONS: Exclude<ProposalStatus, 'blinded'>[] = ['active', 'selected', 'discussing', 'done', 'rejected']
-const OFFICIAL_REPLY_STATUSES: OfficialReplyStatus[] = ['discussing', 'done', 'rejected']
+const OFFICIAL_REPLY_STATUSES: OfficialReplyStatus[] = ['active', 'discussing', 'done', 'rejected']
 const ACCOUNT_ROLES: AccountRole[] = ['student', 'admin', 'teacher', 'parent']
 const ACCOUNT_ROLE_LABELS: Record<AccountRole, string> = {
   student: '학생',
@@ -185,9 +185,12 @@ function isOfficialReplyStatus(status: Exclude<ProposalStatus, 'blinded'>): stat
 }
 
 function canPublishOfficialReply(proposal: AdminProposal, status: Exclude<ProposalStatus, 'blinded'>) {
-  if (proposal.vote_count < 30 || proposal.moderation_status !== 'visible') return false
-  if (!['selected', 'discussing', 'done', 'rejected'].includes(proposal.status)) return false
+  if (proposal.moderation_status !== 'visible') return false
   if (!isOfficialReplyStatus(status)) return false
+  if (proposal.status === 'active') return status === 'active'
+  if (!['selected', 'discussing', 'done', 'rejected'].includes(proposal.status)) return false
+  if (proposal.vote_count < 30 && !(proposal.official_reply_content && (proposal.status === 'done' || proposal.status === 'rejected'))) return false
+  if (status === 'active') return false
   if ((proposal.status === 'done' || proposal.status === 'rejected') && status !== proposal.status) return false
   return true
 }
@@ -407,11 +410,11 @@ export default function AdminPage() {
   const handleReplySave = async () => {
     if (!selectedProposal) return
     if (!isOfficialReplyStatus(statusDraft)) {
-      setActionMessage({ tone: 'error', text: '공식 답변과 함께 저장할 상태를 협의 중, 반영 완료, 반려 중에서 선택해주세요.' })
+      setActionMessage({ tone: 'error', text: '공식 답변과 함께 저장할 처리 상태를 확인해주세요.' })
       return
     }
     if (!canPublishOfficialReply(selectedProposal, statusDraft)) {
-      setActionMessage({ tone: 'error', text: '30표 이상이며 공개 상태인 선정 안건만 공식 답변을 공개할 수 있습니다.' })
+      setActionMessage({ tone: 'error', text: '공개 상태의 진행 중 안건 또는 선정된 안건에서만 공식 답변을 공개할 수 있습니다.' })
       return
     }
     if (publicMessage.trim().length < 3) {
@@ -438,7 +441,12 @@ export default function AdminPage() {
       setActionMessage({ tone: 'error', text: `공식 답변을 저장하지 못했습니다: ${result.error}` })
       return
     }
-    setActionMessage({ tone: 'success', text: '공식 답변과 처리 상태를 학생에게 공개했습니다.' })
+    setActionMessage({
+      tone: 'success',
+      text: statusDraft === 'active'
+        ? '공식 답변을 공개했습니다. 안건은 추천을 계속 받습니다.'
+        : '공식 답변과 처리 상태를 학생에게 공개했습니다.',
+    })
     await refetch()
   }
 
@@ -938,7 +946,9 @@ export default function AdminPage() {
               <section className="admin-drawer-section">
                 <div className="admin-drawer-section-title"><div><span>OFFICIAL REPLY</span><h3>학생회 공식 답변</h3></div>{selectedProposal.official_reply_content && <Badge tone="brandSoft">등록됨</Badge>}</div>
                 <div className="admin-workflow-gate" role="note">
-                  답변 공개 시 위에서 선택한 처리 상태와 공개 처리 내용도 하나의 기록으로 함께 저장됩니다.
+                  {selectedProposal.status === 'active'
+                    ? '30표 전 답변은 안건을 진행 중으로 유지하며, 학생 추천은 계속됩니다.'
+                    : '답변 공개 시 위에서 선택한 처리 상태와 공개 처리 내용도 하나의 기록으로 함께 저장됩니다.'}
                 </div>
                 <label className="admin-field">
                   <span>답변 내용 <small>{replyContent.length} / 1200자</small></span>
@@ -950,7 +960,9 @@ export default function AdminPage() {
                 </label>
                 {!canPublishOfficialReply(selectedProposal, statusDraft) && (
                   <div className="admin-workflow-gate" role="note">
-                    30표 이상인 공개 안건에서 협의 중, 반영 완료 또는 반려 상태를 선택해야 답변을 공개할 수 있습니다.
+                    {selectedProposal.status === 'active'
+                      ? '30표 전 답변은 새 상태를 진행 중으로 둔 상태에서 공개할 수 있습니다.'
+                      : '선정 안건은 협의 중, 반영 완료 또는 반려 상태를 선택해야 답변을 공개할 수 있습니다.'}
                   </div>
                 )}
                 <Btn
@@ -964,7 +976,9 @@ export default function AdminPage() {
                     ? '공개 중…'
                     : selectedProposal.official_reply_content
                       ? '공식 답변 수정 공개'
-                      : '답변과 처리 상태 공개'}
+                      : selectedProposal.status === 'active'
+                        ? '답변 공개 · 추천 계속 받기'
+                        : '답변과 처리 상태 공개'}
                 </Btn>
               </section>
 

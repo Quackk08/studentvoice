@@ -289,7 +289,7 @@ export function useSelectedProposals(limit = 5) {
   return { data, loading }
 }
 
-// ── Fetch all archive (30표+) with optional filter ──
+// ── Fetch selected proposals and any proposal with an official reply ──
 export function useArchive(filter: 'all' | 'done' | 'wip' | 'rejected' = 'all') {
   const [data, setData] = useState<Proposal[]>([])
   const [loading, setLoading] = useState(true)
@@ -300,16 +300,26 @@ export function useArchive(filter: 'all' | 'done' | 'wip' | 'rejected' = 'all') 
       setLoading(true)
       queryProposalSource((source, columns) => {
         let query = supabase.from(source).select(columns)
-          .in('status', SELECTED_PROPOSAL_STATUSES)
+          .in('status', ['active', ...SELECTED_PROPOSAL_STATUSES])
           .order('created_at', { ascending: false })
-        if (filter === 'done') query = query.eq('status', 'done')
-        else if (filter === 'wip') query = query.in('status', ['selected', 'discussing'])
-        else if (filter === 'rejected') query = query.eq('status', 'rejected')
         return query
       }).then(({ data }) => {
-        const items = (data ?? []) as Proposal[]
+        const archiveItems = ((data ?? []) as Proposal[]).filter(item => {
+          if (item.status !== 'active') return true
+          return (item.official_replies ?? []).some(reply => (
+            reply.content.trim().length >= 3
+            && reply.signed_by.trim().length >= 2
+          ))
+        })
+        const items = filter === 'done'
+          ? archiveItems.filter(item => item.status === 'done')
+          : filter === 'wip'
+            ? archiveItems.filter(item => ['active', 'selected', 'discussing'].includes(item.status))
+            : filter === 'rejected'
+              ? archiveItems.filter(item => item.status === 'rejected')
+              : archiveItems
         setData(items)
-        if (filter === 'all') setTotal(items.length)
+        if (filter === 'all') setTotal(archiveItems.length)
         setLoading(false)
       })
     }
