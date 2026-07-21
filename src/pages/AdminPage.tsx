@@ -185,14 +185,22 @@ function isOfficialReplyStatus(status: Exclude<ProposalStatus, 'blinded'>): stat
   return OFFICIAL_REPLY_STATUSES.includes(status as OfficialReplyStatus)
 }
 
+function getOfficialReplyBlockReason(proposal: AdminProposal, status: Exclude<ProposalStatus, 'blinded'>) {
+  if (proposal.moderation_status !== 'visible') return '블라인드 또는 휴지통 안건은 먼저 게시물을 복구해야 답변을 공개할 수 있습니다.'
+  if (!isOfficialReplyStatus(status)) return '답변 공개 후 상태를 추천 진행, 협의 중, 반영 완료 또는 반려 중에서 선택해주세요.'
+  if (proposal.status === 'active') return null
+  if (proposal.status !== 'selected' && proposal.status !== 'discussing' && proposal.status !== 'done' && proposal.status !== 'rejected') {
+    return '현재 안건 상태에서는 공식 답변을 공개할 수 없습니다.'
+  }
+  if (status === 'active') return '선정된 안건을 추천 진행으로 되돌리려면 상태만 변경 방식을 이용해주세요.'
+  if ((proposal.status === 'done' || proposal.status === 'rejected') && status !== proposal.status) {
+    return '처리가 끝난 안건은 결과 상태를 유지한 채 기존 공식 답변만 수정할 수 있습니다.'
+  }
+  return null
+}
+
 function canPublishOfficialReply(proposal: AdminProposal, status: Exclude<ProposalStatus, 'blinded'>) {
-  if (proposal.moderation_status !== 'visible') return false
-  if (!isOfficialReplyStatus(status)) return false
-  if (proposal.status === 'active') return ['active', 'discussing', 'done', 'rejected'].includes(status)
-  if (proposal.status !== 'selected' && proposal.status !== 'discussing' && proposal.status !== 'done' && proposal.status !== 'rejected') return false
-  if (status === 'active') return false
-  if ((proposal.status === 'done' || proposal.status === 'rejected') && status !== proposal.status) return false
-  return true
+  return getOfficialReplyBlockReason(proposal, status) === null
 }
 
 function canTransitionStatus(proposal: AdminProposal, status: Exclude<ProposalStatus, 'blinded'>) {
@@ -370,10 +378,12 @@ export default function AdminPage() {
 
   const openProposal = (proposal: AdminProposal) => {
     setSelectedMemberId(null)
+    setActionMessage(null)
     setSelectedId(proposal.id)
   }
 
   const closeProposal = () => {
+    setActionMessage(null)
     setSelectedId(null)
     if (!searchParams.has('proposal')) return
     const next = new URLSearchParams(searchParams)
@@ -434,8 +444,9 @@ export default function AdminPage() {
       setActionMessage({ tone: 'error', text: '공식 답변과 함께 저장할 처리 상태를 확인해주세요.' })
       return
     }
-    if (!canPublishOfficialReply(selectedProposal, replyStatus)) {
-      setActionMessage({ tone: 'error', text: '현재 안건에서 선택할 수 있는 답변 공개 후 상태를 확인해주세요.' })
+    const blockReason = getOfficialReplyBlockReason(selectedProposal, replyStatus)
+    if (blockReason) {
+      setActionMessage({ tone: 'error', text: blockReason })
       return
     }
     if (publicMessage.trim().length < 3) {
@@ -610,7 +621,7 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          {actionMessage && (
+          {!selectedProposal && actionMessage && (
             <div className={`admin-alert admin-alert-${actionMessage.tone}`} role="status">
               <div><strong>{actionMessage.tone === 'success' ? '처리 완료' : '확인 필요'}</strong><span>{actionMessage.text}</span></div>
               <button type="button" onClick={() => setActionMessage(null)}>닫기</button>
@@ -894,6 +905,12 @@ export default function AdminPage() {
               <button type="button" onClick={closeProposal} aria-label="상세 패널 닫기">×</button>
             </div>
             <div className="admin-drawer-content">
+              {actionMessage && (
+                <div className={`admin-alert admin-drawer-alert admin-alert-${actionMessage.tone}`} role={actionMessage.tone === 'error' ? 'alert' : 'status'}>
+                  <div><strong>{actionMessage.tone === 'success' ? '처리 완료' : '확인 필요'}</strong><span>{actionMessage.text}</span></div>
+                  <button type="button" onClick={() => setActionMessage(null)}>닫기</button>
+                </div>
+              )}
               <h2>{selectedProposal.title}</h2>
               <p className="admin-proposal-body">{selectedProposal.body}</p>
               <div className="admin-drawer-stats">
@@ -1015,7 +1032,7 @@ export default function AdminPage() {
                     </label>
                     {!canPublishOfficialReply(selectedProposal, statusDraft) && (
                       <div className="admin-workflow-gate" role="note">
-                        답변 공개 후 상태로 추천 진행, 협의 중, 반영 완료 또는 반려 중에서 현재 안건에 맞는 값을 선택해주세요.
+                        {getOfficialReplyBlockReason(selectedProposal, statusDraft)}
                       </div>
                     )}
                     <Btn
@@ -1023,7 +1040,7 @@ export default function AdminPage() {
                       size="md"
                       full
                       onClick={handleReplySave}
-                      disabled={busyAction !== null || !canPublishOfficialReply(selectedProposal, statusDraft)}
+                      disabled={busyAction !== null}
                     >
                       {busyAction === `${selectedProposal.id}:reply`
                         ? '공개 중…'

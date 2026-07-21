@@ -478,6 +478,13 @@
   color: #6f5b21;
 }
 
+.admin-drawer-alert {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  box-shadow: 0 8px 20px rgba(28, 31, 27, 0.1);
+}
+
 .admin-section-heading {
   margin-bottom: 22px;
 }
