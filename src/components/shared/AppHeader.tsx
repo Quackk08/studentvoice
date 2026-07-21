@@ -23,16 +23,22 @@ const NAV_TABS: { id: Exclude<ActiveTab, 'admin'>; label: string; to: string }[]
 export default function AppHeader({ active = 'home', isAdmin = false }: AppHeaderProps) {
   const navigate = useNavigate()
   const { profile } = useAuth()
-  const { stats: noticeStats, loading: noticeLoading } = useNoticeStats()
+  const { stats: noticeStats, loading: noticeLoading, error: noticeError } = useNoticeStats()
   const noticeMonth = new Date().getMonth() + 1
-  const noticeDate = new Date(noticeStats.latestDeliveredAt ?? Date.now()).toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
+  const noticeDate = noticeStats.latestDeliveredAt
+    ? new Date(noticeStats.latestDeliveredAt).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+    : null
   const noticeText = noticeLoading
     ? '학생회 전달 현황을 불러오는 중입니다.'
-    : `${noticeMonth}월 학생회 정기회의에서 선정된 안건 ${noticeStats.deliveredThisMonth.toLocaleString('ko-KR')}건이 학교 측에 전달되었습니다.`
+    : noticeError
+      ? noticeError
+      : noticeStats.deliveredThisMonth === 0
+        ? `${noticeMonth}월에 새로 학생회에 전달된 안건이 아직 없습니다.`
+        : `${noticeMonth}월 학생회에 전달된 안건은 ${noticeStats.deliveredThisMonth.toLocaleString('ko-KR')}건입니다.`
 
   // 프로필 표시용 값
   const displayLabel = profile
@@ -74,7 +80,9 @@ export default function AppHeader({ active = 'home', isAdmin = false }: AppHeade
         <span style={{ opacity: 0.85 }}>
           {noticeText}
         </span>
-        <span style={{ marginLeft: 'auto', opacity: 0.55, fontSize: 11 }}>{noticeDate}</span>
+        <span style={{ marginLeft: 'auto', opacity: 0.55, fontSize: 11 }}>
+          {noticeDate ?? '최근 전달 기록 없음'}
+        </span>
       </div>
 
       {/* Main header */}

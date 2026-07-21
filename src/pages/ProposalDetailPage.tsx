@@ -11,7 +11,7 @@ import {
   useProposal, voteProposal, unvoteProposal, checkUserVoted,
   saveProposal, unsaveProposal, checkUserSaved, getSavesCount,
   useComments, addComment, deleteComment,
-  reportProposal, deleteProposal, adminDeleteProposal, updateProposal,
+  reportProposal, checkUserReported, deleteProposal, adminDeleteProposal, updateProposal,
   useProposalStatusHistory,
 } from '../hooks/useProposals'
 import { COLORS } from '../tokens/tokens'
@@ -96,7 +96,12 @@ export default function ProposalDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user, profile } = useAuth()
   const { data: proposal, loading, error: proposalError, refetch } = useProposal(id ?? '')
-  const { data: comments, refetch: refetchComments } = useComments(id ?? '')
+  const {
+    data: comments,
+    loading: commentsLoading,
+    error: commentsError,
+    refetch: refetchComments,
+  } = useComments(id ?? '')
   const { data: statusHistory } = useProposalStatusHistory(id ?? '')
 
   const IS_ADMIN = profile?.is_admin ?? false
@@ -180,17 +185,24 @@ export default function ProposalDetailPage() {
   const [reportDone, setReportDone] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
 
+  useEffect(() => {
+    let active = true
+    if (!user || !id || proposal?.author_id === user.id) {
+      setReportDone(false)
+      return () => { active = false }
+    }
+    checkUserReported(id, user.id).then(reported => {
+      if (active) setReportDone(reported)
+    })
+    return () => { active = false }
+  }, [id, proposal?.author_id, user])
+
   const handleReport = async () => {
     if (!user || !id) return
     setReportLoading(true)
     setReportError(null)
     const { error } = await reportProposal(id, user.id, reportReason)
     setReportLoading(false)
-    if (error?.includes('duplicate')) {
-      setReportDone(true)
-      setReportOpen(false)
-      return
-    }
     if (error) { setReportError(`신고하지 못했습니다: ${error}`); return }
     setReportDone(true)
     setReportOpen(false)
@@ -252,7 +264,9 @@ export default function ProposalDetailPage() {
   // ── Derived values ──────────────────────────────────────
   const voteCount    = proposal?.vote_count   ?? 0
   const viewCount    = proposal?.view_count   ?? 0
-  const commentCount = comments.length
+  const commentCount = commentsLoading || commentsError
+    ? (proposal?.comment_count ?? 0)
+    : comments.length
   const title        = editMode ? editTitle : (proposal?.title    ?? '안건을 불러오는 중…')
   const body         = editMode ? editBody  : (proposal?.body     ?? '')
   const category     = editMode ? editCat   : (proposal?.category ?? '#시설')
@@ -551,7 +565,18 @@ export default function ProposalDetailPage() {
                 )}
 
                 {/* Comment list */}
-                {comments.length === 0 ? (
+                {commentsError ? (
+                  <div role="alert" style={{ padding: '24px 0', textAlign: 'center', color: COLORS.warn, fontSize: 13 }}>
+                    <div>{commentsError}</div>
+                    <Btn variant="outline" size="sm" style={{ marginTop: 12 }} onClick={refetchComments}>
+                      댓글 다시 불러오기
+                    </Btn>
+                  </div>
+                ) : commentsLoading ? (
+                  <div style={{ padding: '32px 0', textAlign: 'center', color: COLORS.inkMuted, fontSize: 13 }}>
+                    댓글을 불러오는 중입니다.
+                  </div>
+                ) : comments.length === 0 ? (
                   <div style={{ padding: '32px 0', textAlign: 'center', color: COLORS.inkMuted, fontSize: 13 }}>
                     아직 의견이 없습니다. 첫 번째 의견을 남겨보세요.
                   </div>

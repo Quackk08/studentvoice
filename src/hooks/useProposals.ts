@@ -33,6 +33,8 @@ export interface UserNotification {
 
 const DATA_CHANGED_EVENT = 'studentvoice:data-changed'
 const PROPOSAL_LOAD_ERROR = '안건을 불러오지 못했습니다. 페이지를 새로고침하거나 잠시 후 다시 시도해주세요.'
+const COMMENT_LOAD_ERROR = '댓글을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'
+const NOTICE_LOAD_ERROR = '학생회 전달 현황을 불러오지 못했습니다.'
 const LEGACY_PROPOSAL_SELECT = '*, author_profile:profiles!proposals_author_id_fkey(id, name, email, grade, class), official_replies(*)'
 
 type ProposalQueryResult = {
@@ -130,15 +132,49 @@ export function useNoticeStats() {
     latestDeliveredAt: null as string | null,
   })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetch = useCallback(async () => {
-    const { data } = await supabase.rpc('get_notice_stats')
-    const row = data?.[0]
+    const { data, error: rpcError } = await supabase.rpc('get_notice_stats')
+    if (!rpcError) {
+      const row = data?.[0]
+
+      setStats({
+        deliveredThisMonth: Number(row?.delivered_this_month ?? 0),
+        latestDeliveredAt: row?.latest_delivered_at ?? null,
+      })
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    // Transitional fallback for deployments where the frontend reaches Vercel
+    // before the pending migration has refreshed the PostgREST schema cache.
+    if (isMissingRpc(rpcError, 'get_notice_stats')) {
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+      const fallback = await queryProposalSource((source, columns) => supabase
+        .from(source)
+        .select(columns)
+        .in('status', SELECTED_PROPOSAL_STATUSES)
+        .gte('updated_at', monthStart)
+        .order('updated_at', { ascending: false }), 'id, updated_at')
+      if (!fallback.error) {
+        const items = (fallback.data ?? []) as Proposal[]
+        setStats({
+          deliveredThisMonth: items.length,
+          latestDeliveredAt: items[0]?.updated_at ?? null,
+        })
+        setError(null)
+        setLoading(false)
+        return
+      }
+    }
 
     setStats({
-      deliveredThisMonth: Number(row?.delivered_this_month ?? 0),
-      latestDeliveredAt: row?.latest_delivered_at ?? null,
+      deliveredThisMonth: 0,
+      latestDeliveredAt: null,
     })
+    setError(NOTICE_LOAD_ERROR)
     setLoading(false)
   }, [])
 
@@ -147,7 +183,7 @@ export function useNoticeStats() {
     return subscribeToDataChanges(fetch)
   }, [fetch])
 
-  return { stats, loading }
+  return { stats, loading, error }
 }
 
 // ── Home / landing stats (profiles + proposal counts) ──────
@@ -265,7 +301,6 @@ export function useArchive(filter: 'all' | 'done' | 'wip' | 'rejected' = 'all') 
       queryProposalSource((source, columns) => {
         let query = supabase.from(source).select(columns)
           .in('status', SELECTED_PROPOSAL_STATUSES)
-          .gte('vote_count', 30)
           .order('created_at', { ascending: false })
         if (filter === 'done') query = query.eq('status', 'done')
         else if (filter === 'wip') query = query.in('status', ['selected', 'discussing'])
@@ -499,6 +534,16 @@ export async function clearReadNotifications(userId: string) {
 
 export async function voteProposal(proposalId: string, userId: string): Promise<{ error: string | null }> {
   if (!isUuid(proposalId) || !isUuid(userId)) return { error: 'Invalid request.' }
+  const { error: rpcError } = await supabase.rpc('set_proposal_vote', {
+    p_proposal_id: proposalId,
+    p_should_vote: true,
+  })
+  if (!rpcError) {
+    announceDataChanged()
+    return { error: null }
+  }
+  if (!isMissingRpc(rpcError, 'set_proposal_vote')) return { error: rpcError.message }
+
   const { error } = await supabase
     .from('votes')
     .insert({ proposal_id: proposalId, user_id: userId })
@@ -509,6 +554,16 @@ export async function voteProposal(proposalId: string, userId: string): Promise<
 
 export async function unvoteProposal(proposalId: string, userId: string): Promise<{ error: string | null }> {
   if (!isUuid(proposalId) || !isUuid(userId)) return { error: 'Invalid request.' }
+  const { error: rpcError } = await supabase.rpc('set_proposal_vote', {
+    p_proposal_id: proposalId,
+    p_should_vote: false,
+  })
+  if (!rpcError) {
+    announceDataChanged()
+    return { error: null }
+  }
+  if (!isMissingRpc(rpcError, 'set_proposal_vote')) return { error: rpcError.message }
+
   const { error } = await supabase
     .from('votes')
     .delete()
@@ -581,13 +636,57 @@ export async function submitProposal(params: {
 }
 
 // ── Report a proposal ──
-export async function reportProposal(proposalId: string, reporterId: string, reason: string) {
-  if (!isUuid(proposalId) || !isUuid(reporterId)) return { error: 'Invalid request.' }
+export async function reportProposal(
+  proposalId: string,
+  reporterId: string,
+  reason: string,
+): Promise<{ error: string | null; alreadyReported: boolean; reportCount: number | null }> {
+  if (!isUuid(proposalId) || !isUuid(reporterId)) {
+    return { error: 'Invalid request.', alreadyReported: false, reportCount: null }
+  }
+  const validatedReason = validateReportReason(reason)
+  const { data, error: rpcError } = await supabase.rpc('report_proposal', {
+    p_proposal_id: proposalId,
+    p_reason: validatedReason || null,
+  })
+  if (!rpcError) {
+    const row = Array.isArray(data) ? data[0] : data
+    announceDataChanged()
+    return {
+      error: null,
+      alreadyReported: row?.outcome === 'already_reported',
+      reportCount: row?.report_count == null ? null : Number(row.report_count),
+    }
+  }
+  if (!isMissingRpc(rpcError, 'report_proposal')) {
+    return { error: rpcError.message, alreadyReported: false, reportCount: null }
+  }
+
   const { error } = await supabase
     .from('reports')
-    .insert({ proposal_id: proposalId, reporter_id: reporterId, reason: validateReportReason(reason) })
+    .insert({ proposal_id: proposalId, reporter_id: reporterId, reason: validatedReason || null })
   if (!error) announceDataChanged()
-  return { error: error?.message ?? null }
+  return {
+    error: error && error.code !== '23505' ? error.message : null,
+    alreadyReported: error?.code === '23505',
+    reportCount: null,
+  }
+}
+
+export async function checkUserReported(proposalId: string, reporterId: string): Promise<boolean> {
+  if (!isUuid(proposalId) || !isUuid(reporterId)) return false
+  const { data, error: rpcError } = await supabase.rpc('has_reported_proposal', {
+    p_proposal_id: proposalId,
+  })
+  if (!rpcError) return Boolean(data)
+  if (!isMissingRpc(rpcError, 'has_reported_proposal')) return false
+
+  const { data: fallback } = await supabase
+    .from('reports')
+    .select('id')
+    .match({ proposal_id: proposalId, reporter_id: reporterId })
+    .limit(1)
+  return Boolean(fallback?.length)
 }
 
 // ── Admin: fetch selected proposals queue ──
@@ -759,11 +858,34 @@ export async function unsaveProposal(proposalId: string, userId: string) {
 export function useComments(proposalId: string) {
   const [data, setData] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetch = useCallback(async () => {
     if (!isUuid(proposalId)) { setData([]); setLoading(false); return }
-    const { data } = await supabase.rpc('get_proposal_comments', { p_proposal_id: proposalId })
-    setData((data ?? []) as Comment[])
+    const { data, error: rpcError } = await supabase.rpc('get_proposal_comments', { p_proposal_id: proposalId })
+    if (!rpcError) {
+      setData((data ?? []) as Comment[])
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    if (isMissingRpc(rpcError, 'get_proposal_comments')) {
+      const fallback = await supabase
+        .from('comments')
+        .select('id, proposal_id, author_id, content, is_anonymous, created_at')
+        .eq('proposal_id', proposalId)
+        .order('created_at', { ascending: true })
+      if (!fallback.error) {
+        setData((fallback.data ?? []) as Comment[])
+        setError(null)
+        setLoading(false)
+        return
+      }
+    }
+
+    setData([])
+    setError(COMMENT_LOAD_ERROR)
     setLoading(false)
   }, [proposalId])
 
@@ -772,7 +894,7 @@ export function useComments(proposalId: string) {
     return subscribeToDataChanges(fetch)
   }, [fetch])
 
-  return { data, loading, refetch: fetch }
+  return { data, loading, error, refetch: fetch }
 }
 
 export async function addComment(
