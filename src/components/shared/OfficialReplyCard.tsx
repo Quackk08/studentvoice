@@ -1,4 +1,4 @@
-import type { OfficialReply } from '../../types/database'
+import type { OfficialReply, ProposalStatus } from '../../types/database'
 import { COLORS } from '../../tokens/tokens'
 
 interface OfficialReplyCardProps {
@@ -6,7 +6,11 @@ interface OfficialReplyCardProps {
   compact?: boolean
 }
 
-export function getDisplayableOfficialReply(replies: OfficialReply[] | OfficialReply | null | undefined) {
+export function getDisplayableOfficialReply(
+  replies: OfficialReply[] | OfficialReply | null | undefined,
+  proposalStatus: ProposalStatus | undefined,
+) {
+  if (!proposalStatus || proposalStatus === 'active' || proposalStatus === 'blinded') return null
   const replyList = Array.isArray(replies) ? replies : replies ? [replies] : []
   return replyList.find(reply => (
     reply.content.trim().length >= 3

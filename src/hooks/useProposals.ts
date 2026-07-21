@@ -4,7 +4,6 @@ import {
   isProposalStatus,
   isUuid,
   validateCommentInput,
-  validateOfficialReply,
   validateProposalInput,
   validateReportReason,
 } from '../lib/security'
@@ -15,6 +14,7 @@ import type {
   Comment,
   NotificationSettings,
   Notification,
+  ProposalStatusEvent,
 } from '../types/database'
 import { SELECTED_PROPOSAL_STATUSES } from '../lib/proposalStatus'
 
@@ -423,6 +423,40 @@ export function useUserNotifications(userId: string | undefined) {
   }, [fetch])
 
   return { data, loading, refetch: fetch }
+}
+
+export function useProposalStatusHistory(proposalId: string) {
+  const [data, setData] = useState<ProposalStatusEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetch = useCallback(async () => {
+    if (!isUuid(proposalId)) {
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    const { data, error } = await supabase.rpc('get_public_proposal_status_history', {
+      p_proposal_id: proposalId,
+    })
+
+    if (error) {
+      setData([])
+      setError(isMissingRpc(error, 'get_public_proposal_status_history') ? null : error.message)
+    } else {
+      setData((data ?? []) as ProposalStatusEvent[])
+      setError(null)
+    }
+    setLoading(false)
+  }, [proposalId])
+
+  useEffect(() => {
+    fetch()
+    return subscribeToDataChanges(fetch)
+  }, [fetch])
+
+  return { data, loading, error, refetch: fetch }
 }
 
 export async function markNotificationRead(notificationId: string) {
@@ -857,26 +891,6 @@ export async function updateProposal(
     .from('proposals')
     .update(validated.value)
     .eq('id', proposalId)
-  if (!error) announceDataChanged()
-  return { error: error?.message ?? null }
-}
-
-// ── Upsert official reply (admin only) ───────────────────────
-export async function upsertOfficialReply(
-  proposalId: string,
-  content: string,
-  signedBy: string,
-) {
-  if (!isUuid(proposalId)) return { error: 'Invalid request.' }
-  const validated = validateOfficialReply({ content, signedBy })
-  if (validated.error || !validated.value) return { error: validated.error ?? 'Invalid request.' }
-
-  const { error } = await supabase
-    .from('official_replies')
-    .upsert(
-      { proposal_id: proposalId, content: validated.value.content, signed_by: validated.value.signedBy },
-      { onConflict: 'proposal_id' },
-    )
   if (!error) announceDataChanged()
   return { error: error?.message ?? null }
 }

@@ -215,7 +215,7 @@ export default function ArchivePage() {
             {data.map((a) => {
               const statusLabel = getProposalStatusLabel(a.status)
               const statusTone = getProposalStatusTone(a.status)
-              const reply = getDisplayableOfficialReply(a.official_replies)
+              const reply = getDisplayableOfficialReply(a.official_replies, a.status)
               return (
                 <div
                   className="responsive-grid"

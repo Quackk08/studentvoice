@@ -5,19 +5,18 @@ import Badge from '../components/shared/Badge'
 import Btn from '../components/shared/Btn'
 import ProgressBar from '../components/shared/ProgressBar'
 import OfficialReplyCard, { getDisplayableOfficialReply } from '../components/shared/OfficialReplyCard'
+import ProposalStatusTimeline from '../components/shared/ProposalStatusTimeline'
 import { useAuth } from '../contexts/AuthContext'
 import {
   useProposal, voteProposal, unvoteProposal, checkUserVoted,
   saveProposal, unsaveProposal, checkUserSaved, getSavesCount,
   useComments, addComment, deleteComment,
   reportProposal, deleteProposal, adminDeleteProposal, updateProposal,
-  adminUpdateStatus,
+  useProposalStatusHistory,
 } from '../hooks/useProposals'
-import { saveAdminOfficialReply } from '../hooks/useAdminConsole'
 import { COLORS } from '../tokens/tokens'
 import { PROPOSAL_STATUS_LABELS, PROPOSAL_STATUS_TONES } from '../lib/proposalStatus'
-import { validateOfficialReply } from '../lib/security'
-import type { ProposalCategory, ProposalStatus } from '../types/database'
+import type { ProposalCategory } from '../types/database'
 
 const CATS: ProposalCategory[] = ['#시설', '#급식', '#교칙', '#학사', '#수업', '#복지', '#기타']
 
@@ -98,10 +97,10 @@ export default function ProposalDetailPage() {
   const { user, profile } = useAuth()
   const { data: proposal, loading, error: proposalError, refetch } = useProposal(id ?? '')
   const { data: comments, refetch: refetchComments } = useComments(id ?? '')
+  const { data: statusHistory } = useProposalStatusHistory(id ?? '')
 
   const IS_ADMIN = profile?.is_admin ?? false
-  const storedReply = proposal?.official_replies?.[0]
-  const existingReply = getDisplayableOfficialReply(proposal?.official_replies)
+  const existingReply = getDisplayableOfficialReply(proposal?.official_replies, proposal?.status)
   const [actionError, setActionError] = useState<string | null>(null)
 
   // ── Vote / Save ──────────────────────────────────────────
@@ -248,50 +247,6 @@ export default function ProposalDetailPage() {
     } finally {
       setDeleteLoading(false)
     }
-  }
-
-  // ── Admin: status change ─────────────────────────────────
-  const [statusMenuOpen, setStatusMenuOpen] = useState(false)
-  const [statusLoading, setStatusLoading] = useState(false)
-
-  const handleAdminStatus = async (newStatus: string) => {
-    if (!id) return
-    setStatusLoading(true)
-    setActionError(null)
-    const { error } = await adminUpdateStatus(id, newStatus)
-    setStatusLoading(false)
-    if (error) { setActionError(`상태를 변경하지 못했습니다: ${error}`); return }
-    await refetch()
-    setStatusMenuOpen(false)
-  }
-
-  // ── Admin: official reply modal ──────────────────────────
-  const [replyOpen, setReplyOpen] = useState(false)
-  const [replyContent, setReplyContent] = useState('')
-  const [replySignedBy, setReplySignedBy] = useState('')
-  const [replySaving, setReplySaving] = useState(false)
-  const [replyError, setReplyError] = useState<string | null>(null)
-
-  const openReplyModal = () => {
-    setReplyContent(storedReply?.content ?? '')
-    setReplySignedBy(storedReply?.signed_by ?? profile?.name ?? '')
-    setReplyError(null)
-    setReplyOpen(true)
-  }
-
-  const saveReply = async () => {
-    const validated = validateOfficialReply({ content: replyContent, signedBy: replySignedBy })
-    if (validated.error || !validated.value) {
-      setReplyError(validated.error ?? '공식 답변을 확인해주세요.')
-      return
-    }
-    if (!id) return
-    setReplySaving(true)
-    const { error } = await saveAdminOfficialReply(id, validated.value.content, validated.value.signedBy)
-    setReplySaving(false)
-    if (error) { setReplyError(`공식 답변을 저장하지 못했습니다: ${error}`); return }
-    await refetch()
-    setReplyOpen(false)
   }
 
   // ── Derived values ──────────────────────────────────────
@@ -489,6 +444,8 @@ export default function ProposalDetailPage() {
                 <OfficialReplyCard reply={existingReply} />
               </div>
             )}
+
+            {!editMode && <ProposalStatusTimeline events={statusHistory} />}
 
             {/* Action buttons (only in read mode) */}
             {!editMode && (
@@ -784,60 +741,17 @@ export default function ProposalDetailPage() {
                 >
                   ⚙ 운영자 도구
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <Btn variant="brand" size="sm" full onClick={openReplyModal}>
-                    {storedReply ? '학생회 답변 수정' : '학생회 답변 작성'}
-                  </Btn>
-
-                  {/* Status change dropdown */}
-                  <div style={{ position: 'relative' }}>
-                    <Btn variant="outline" size="sm" full onClick={() => setStatusMenuOpen(o => !o)}>
-                      상태 변경 ({PROPOSAL_STATUS_LABELS[proposal?.status ?? 'active']}) ▾
-                    </Btn>
-                    {statusMenuOpen && (
-                      <div
-                        style={{
-                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99,
-                          background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-                          borderRadius: 10, overflow: 'hidden', marginTop: 4,
-                          boxShadow: '0 8px 24px -4px rgba(0,0,0,0.15)',
-                        }}
-                      >
-                        {(['active', 'selected', 'discussing', 'done', 'rejected'] as ProposalStatus[]).map(status => (
-                          <button
-                            key={status}
-                            onClick={() => handleAdminStatus(status)}
-                            disabled={statusLoading || proposal?.status === status}
-                            style={{
-                              display: 'block', width: '100%', padding: '11px 14px',
-                              textAlign: 'left', border: 'none', background: proposal?.status === status ? COLORS.surfaceAlt : 'transparent',
-                              fontSize: 13, fontWeight: proposal?.status === status ? 700 : 400,
-                              color: COLORS.ink, cursor: 'pointer', fontFamily: 'inherit',
-                            }}
-                          >
-                            {PROPOSAL_STATUS_LABELS[status]} {proposal?.status === status ? '✓' : ''}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <Btn
-                    variant="outline" size="sm" full
-                    style={{ color: COLORS.warn, borderColor: '#F2D6C2' }}
-                    onClick={() => handleAdminStatus(proposal?.status === 'blinded' ? 'active' : 'blinded')}
-                    disabled={statusLoading}
-                  >
-                    {proposal?.status === 'blinded' ? '블라인드 해제' : '블라인드 처리'}
-                  </Btn>
-                  <Btn
-                    variant="outline" size="sm" full
-                    style={{ color: COLORS.warn, borderColor: '#F2D6C2', marginTop: 4 }}
-                    onClick={() => setDeleteConfirm(true)}
-                  >
-                    안건 삭제
-                  </Btn>
-                </div>
+                <p style={{ margin: '0 0 14px', fontSize: 12, lineHeight: 1.65, color: COLORS.inkSub }}>
+                  상태 변경, 공식 답변, 신고 및 공개 관리는 관리자 콘솔에서 하나의 처리 기록으로 관리합니다.
+                </p>
+                <Btn
+                  variant="brand"
+                  size="sm"
+                  full
+                  onClick={() => navigate(`/admin?view=proposals&proposal=${id}`)}
+                >
+                  관리자 콘솔에서 처리하기 →
+                </Btn>
               </div>
             )}
 
@@ -944,64 +858,6 @@ export default function ProposalDetailPage() {
         </Modal>
       )}
 
-      {/* ── Admin reply modal ── */}
-      {replyOpen && (
-        <Modal
-          title={storedReply ? '학생회 답변 수정' : '학생회 공식 답변 작성'}
-          onClose={() => setReplyOpen(false)}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>답변 내용</div>
-            <textarea
-              value={replyContent}
-              onChange={e => setReplyContent(e.target.value)}
-              placeholder="학생회 공식 입장을 작성해주세요…"
-              rows={5}
-              maxLength={1200}
-              style={{
-                width: '100%', border: `1px solid ${COLORS.line}`, borderRadius: 10,
-                padding: '12px 14px', fontSize: 13, fontFamily: 'inherit',
-                color: COLORS.ink, background: COLORS.surfaceAlt, outline: 'none',
-                resize: 'none', boxSizing: 'border-box',
-              }}
-            />
-            <div style={{ marginTop: 5, textAlign: 'right', fontSize: 10, color: COLORS.inkMuted }}>{replyContent.length} / 1200자</div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>공개 답변자 (예: 대신고 학생회, 홍길동 학생회장)</div>
-            <input
-              value={replySignedBy}
-              onChange={e => setReplySignedBy(e.target.value)}
-              placeholder="서명자 또는 부서명"
-              maxLength={40}
-              style={{
-                width: '100%', border: `1px solid ${COLORS.line}`, borderRadius: 10,
-                padding: '10px 14px', fontSize: 13, fontFamily: 'inherit',
-                color: COLORS.ink, background: COLORS.surfaceAlt, outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            <div style={{ marginTop: 5, textAlign: 'right', fontSize: 10, color: COLORS.inkMuted }}>{replySignedBy.length} / 40자</div>
-          </div>
-          {replyError && (
-            <div style={{ fontSize: 12, color: COLORS.warn, marginBottom: 12 }}>{replyError}</div>
-          )}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <Btn variant="outline" size="md" onClick={() => setReplyOpen(false)}>취소</Btn>
-            <Btn variant="brand" size="md" onClick={saveReply} disabled={replySaving}>
-              {replySaving ? '저장 중…' : '저장하기'}
-            </Btn>
-          </div>
-        </Modal>
-      )}
-
-      {/* Close status menu on outside click */}
-      {statusMenuOpen && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 98 }}
-          onClick={() => setStatusMenuOpen(false)}
-        />
-      )}
     </AppLayout>
   )
 }

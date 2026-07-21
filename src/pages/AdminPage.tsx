@@ -7,8 +7,8 @@ import ProgressBar from '../components/shared/ProgressBar'
 import { useAuth } from '../contexts/AuthContext'
 import {
   moderateAdminProposal,
+  publishAdminOfficialReply,
   resolveAdminReports,
-  saveAdminOfficialReply,
   transitionAdminProposal,
   useAdminConsole,
 } from '../hooks/useAdminConsole'
@@ -30,6 +30,7 @@ import type {
 type AdminSection = 'overview' | 'proposals' | 'reports' | 'members' | 'activity'
 type ProposalSort = 'updated' | 'votes' | 'reports' | 'oldest'
 type ConfirmAction = AdminModerationAction | 'resolve_reports'
+type OfficialReplyStatus = 'discussing' | 'done' | 'rejected'
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; description: string }[] = [
   { id: 'overview', label: '운영 현황', description: '오늘 처리할 업무' },
@@ -50,6 +51,7 @@ const SCOPE_TABS: { id: AdminProposalScope; label: string }[] = [
 
 const CATEGORIES: ProposalCategory[] = ['#시설', '#급식', '#교칙', '#학사', '#수업', '#복지', '#기타']
 const STATUS_OPTIONS: Exclude<ProposalStatus, 'blinded'>[] = ['active', 'selected', 'discussing', 'done', 'rejected']
+const OFFICIAL_REPLY_STATUSES: OfficialReplyStatus[] = ['discussing', 'done', 'rejected']
 const ACCOUNT_ROLES: AccountRole[] = ['student', 'admin', 'teacher', 'parent']
 const ACCOUNT_ROLE_LABELS: Record<AccountRole, string> = {
   student: '학생',
@@ -84,6 +86,7 @@ const ACTIVITY_LABELS: Record<string, string> = {
   reports_resolved: '신고 해제',
   reports_dismissed: '신고 해제',
   official_reply_saved: '공식 답변 저장',
+  official_reply_published: '공식 답변 공개',
   member_role_changed: '계정 역할 변경',
 }
 
@@ -161,7 +164,10 @@ function activityDescription(item: AdminActivityItem) {
   if (from && to) return `${from} → ${to}${publicMessage ? ` · ${publicMessage}` : ''}`
   if (reason) return reason
   if (count != null) return `신고 ${count}건 처리`
-  if (item.action === 'official_reply_saved' && typeof item.details.signed_by === 'string') return `서명: ${item.details.signed_by}`
+  if ((item.action === 'official_reply_saved' || item.action === 'official_reply_published') && typeof item.details.signed_by === 'string') {
+    const revision = typeof item.details.revision_no === 'number' ? ` · 버전 ${item.details.revision_no}` : ''
+    return `답변자: ${item.details.signed_by}${revision}`
+  }
   return '처리 세부 정보 없음'
 }
 
@@ -172,6 +178,18 @@ function scopeMatches(proposal: AdminProposal, scope: AdminProposalScope) {
   if (scope === 'blinded') return proposal.moderation_status === 'blinded' || (proposal.status === 'blinded' && proposal.moderation_status !== 'trashed')
   if (scope === 'trashed') return proposal.moderation_status === 'trashed'
   return proposal.moderation_status === 'visible' && proposal.status !== 'blinded'
+}
+
+function isOfficialReplyStatus(status: Exclude<ProposalStatus, 'blinded'>): status is OfficialReplyStatus {
+  return OFFICIAL_REPLY_STATUSES.includes(status as OfficialReplyStatus)
+}
+
+function canPublishOfficialReply(proposal: AdminProposal, status: Exclude<ProposalStatus, 'blinded'>) {
+  if (proposal.vote_count < 30 || proposal.moderation_status !== 'visible') return false
+  if (!['selected', 'discussing', 'done', 'rejected'].includes(proposal.status)) return false
+  if (!isOfficialReplyStatus(status)) return false
+  if ((proposal.status === 'done' || proposal.status === 'rejected') && status !== proposal.status) return false
+  return true
 }
 
 export default function AdminPage() {
@@ -192,6 +210,7 @@ export default function AdminPage() {
   const isAdminConsoleV2 = stats.schemaVersion === 'admin-console-v2'
 
   const requestedSection = searchParams.get('view')
+  const requestedProposalId = searchParams.get('proposal')
   const section: AdminSection = ADMIN_SECTIONS.some(item => item.id === requestedSection)
     ? requestedSection as AdminSection
     : 'overview'
@@ -235,6 +254,13 @@ export default function AdminPage() {
     () => selectedMemberId ? members.find(member => member.id === selectedMemberId) ?? null : null,
     [members, selectedMemberId],
   )
+
+  useEffect(() => {
+    if (!requestedProposalId || loading) return
+    const exists = proposals.some(item => item.id === requestedProposalId)
+      || reports.some(item => item.proposal.id === requestedProposalId)
+    if (exists) setSelectedId(requestedProposalId)
+  }, [loading, proposals, reports, requestedProposalId])
 
   useEffect(() => {
     if (!selectedProposal) return
@@ -320,6 +346,14 @@ export default function AdminPage() {
     setSelectedId(proposal.id)
   }
 
+  const closeProposal = () => {
+    setSelectedId(null)
+    if (!searchParams.has('proposal')) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('proposal')
+    setSearchParams(next, { replace: true })
+  }
+
   const openMember = (member: AdminMember) => {
     setSelectedId(null)
     setSelectedMemberId(member.id)
@@ -340,8 +374,12 @@ export default function AdminPage() {
 
   const handleStatusSave = async () => {
     if (!selectedProposal) return
-    if (isAdminConsoleV2 && (statusDraft === 'done' || statusDraft === 'rejected') && publicMessage.trim().length < 3) {
-      setActionMessage({ tone: 'error', text: '반영 완료 또는 반려 처리에는 학생에게 공개할 내용을 3자 이상 입력해주세요.' })
+    if (statusDraft === 'done' || statusDraft === 'rejected') {
+      setActionMessage({ tone: 'error', text: '반영 완료와 반려 처리는 공식 답변을 함께 공개해야 합니다.' })
+      return
+    }
+    if (selectedProposal.official_reply_content && statusDraft !== selectedProposal.status) {
+      setActionMessage({ tone: 'error', text: '이미 답변이 있는 안건은 공식 답변 공개 절차로 상태를 함께 변경해주세요.' })
       return
     }
     setBusyAction(`${selectedProposal.id}:status`)
@@ -368,6 +406,18 @@ export default function AdminPage() {
 
   const handleReplySave = async () => {
     if (!selectedProposal) return
+    if (!isOfficialReplyStatus(statusDraft)) {
+      setActionMessage({ tone: 'error', text: '공식 답변과 함께 저장할 상태를 협의 중, 반영 완료, 반려 중에서 선택해주세요.' })
+      return
+    }
+    if (!canPublishOfficialReply(selectedProposal, statusDraft)) {
+      setActionMessage({ tone: 'error', text: '30표 이상이며 공개 상태인 선정 안건만 공식 답변을 공개할 수 있습니다.' })
+      return
+    }
+    if (publicMessage.trim().length < 3) {
+      setActionMessage({ tone: 'error', text: '학생에게 공개할 처리 내용을 3자 이상 입력해주세요.' })
+      return
+    }
     const validated = validateOfficialReply({ content: replyContent, signedBy: replySignedBy })
     if (validated.error || !validated.value) {
       setActionMessage({ tone: 'error', text: validated.error ?? '공식 답변 내용과 답변자를 확인해주세요.' })
@@ -375,13 +425,20 @@ export default function AdminPage() {
     }
     setBusyAction(`${selectedProposal.id}:reply`)
     setActionMessage(null)
-    const result = await saveAdminOfficialReply(selectedProposal.id, validated.value.content, validated.value.signedBy)
+    const result = await publishAdminOfficialReply({
+      proposalId: selectedProposal.id,
+      content: validated.value.content,
+      signedBy: validated.value.signedBy,
+      newStatus: statusDraft,
+      publicMessage,
+      internalNote,
+    })
     setBusyAction(null)
     if (result.error) {
       setActionMessage({ tone: 'error', text: `공식 답변을 저장하지 못했습니다: ${result.error}` })
       return
     }
-    setActionMessage({ tone: 'success', text: '학생회 공식 답변을 저장했습니다.' })
+    setActionMessage({ tone: 'success', text: '공식 답변과 처리 상태를 학생에게 공개했습니다.' })
     await refetch()
   }
 
@@ -789,11 +846,11 @@ export default function AdminPage() {
       </div>
 
       {selectedProposal && (
-        <div className="admin-drawer-backdrop" role="presentation" onMouseDown={() => setSelectedId(null)}>
+        <div className="admin-drawer-backdrop" role="presentation" onMouseDown={closeProposal}>
           <aside className="admin-detail-drawer" role="dialog" aria-modal="true" aria-label="안건 관리 상세" onMouseDown={event => event.stopPropagation()}>
             <div className="admin-drawer-header">
               <div><span>{selectedProposal.category}</span><StatusBadge proposal={selectedProposal} /></div>
-              <button type="button" onClick={() => setSelectedId(null)} aria-label="상세 패널 닫기">×</button>
+              <button type="button" onClick={closeProposal} aria-label="상세 패널 닫기">×</button>
             </div>
             <div className="admin-drawer-content">
               <h2>{selectedProposal.title}</h2>
@@ -827,7 +884,12 @@ export default function AdminPage() {
                     disabled={selectedProposal.moderation_status !== 'visible'}
                   >
                     {STATUS_OPTIONS.map(status => (
-                      <option key={status} value={status} disabled={status !== 'active' && selectedProposal.vote_count < 30}>
+                      <option
+                        key={status}
+                        value={status}
+                        disabled={(status !== 'active' && selectedProposal.vote_count < 30)
+                          || ((selectedProposal.status === 'done' || selectedProposal.status === 'rejected') && status !== selectedProposal.status)}
+                      >
                         {PROPOSAL_STATUS_LABELS[status]}
                       </option>
                     ))}
@@ -843,8 +905,13 @@ export default function AdminPage() {
                     호환 모드에서는 상태만 변경됩니다. 공개 처리 내용과 내부 메모는 DB v2 적용 후 저장할 수 있습니다.
                   </div>
                 )}
+                {(statusDraft === 'done' || statusDraft === 'rejected') && (
+                  <div className="admin-workflow-gate" role="note">
+                    최종 처리 상태는 아래 공식 답변과 함께 공개해야 합니다.
+                  </div>
+                )}
                 <label className="admin-field">
-                  <span>학생에게 공개할 처리 내용 {isAdminConsoleV2 && (statusDraft === 'done' || statusDraft === 'rejected') ? '(필수)' : '(선택)'}</span>
+                  <span>학생에게 공개할 처리 내용 {statusDraft === 'done' || statusDraft === 'rejected' ? '(필수)' : '(답변 공개 시 필수)'}</span>
                   <textarea rows={3} value={publicMessage} onChange={event => setPublicMessage(event.target.value)} placeholder="처리 결과나 다음 진행 상황을 작성하세요." maxLength={500} disabled={!isAdminConsoleV2} />
                 </label>
                 <label className="admin-field">
@@ -856,7 +923,13 @@ export default function AdminPage() {
                   size="md"
                   full
                   onClick={handleStatusSave}
-                  disabled={busyAction !== null || selectedProposal.moderation_status !== 'visible' || (statusDraft !== 'active' && selectedProposal.vote_count < 30)}
+                  disabled={busyAction !== null
+                    || selectedProposal.moderation_status !== 'visible'
+                    || (statusDraft !== 'active' && selectedProposal.vote_count < 30)
+                    || statusDraft === 'done'
+                    || statusDraft === 'rejected'
+                    || statusDraft === selectedProposal.status
+                    || Boolean(selectedProposal.official_reply_content && statusDraft !== selectedProposal.status)}
                 >
                   {busyAction === `${selectedProposal.id}:status` ? '저장 중…' : '상태와 처리 기록 저장'}
                 </Btn>
@@ -864,6 +937,9 @@ export default function AdminPage() {
 
               <section className="admin-drawer-section">
                 <div className="admin-drawer-section-title"><div><span>OFFICIAL REPLY</span><h3>학생회 공식 답변</h3></div>{selectedProposal.official_reply_content && <Badge tone="brandSoft">등록됨</Badge>}</div>
+                <div className="admin-workflow-gate" role="note">
+                  답변 공개 시 위에서 선택한 처리 상태와 공개 처리 내용도 하나의 기록으로 함께 저장됩니다.
+                </div>
                 <label className="admin-field">
                   <span>답변 내용 <small>{replyContent.length} / 1200자</small></span>
                   <textarea rows={5} value={replyContent} onChange={event => setReplyContent(event.target.value)} placeholder="학생회 공식 입장과 처리 결과를 작성하세요." maxLength={1200} />
@@ -872,7 +948,24 @@ export default function AdminPage() {
                   <span>공개 답변자 <small>{replySignedBy.length} / 40자</small></span>
                   <input value={replySignedBy} onChange={event => setReplySignedBy(event.target.value)} placeholder="예: 제35대 학생회 또는 홍길동 학생회장" maxLength={40} />
                 </label>
-                <Btn variant="outline" size="md" full onClick={handleReplySave} disabled={busyAction !== null}>{busyAction === `${selectedProposal.id}:reply` ? '저장 중…' : '공식 답변 저장'}</Btn>
+                {!canPublishOfficialReply(selectedProposal, statusDraft) && (
+                  <div className="admin-workflow-gate" role="note">
+                    30표 이상인 공개 안건에서 협의 중, 반영 완료 또는 반려 상태를 선택해야 답변을 공개할 수 있습니다.
+                  </div>
+                )}
+                <Btn
+                  variant="outline"
+                  size="md"
+                  full
+                  onClick={handleReplySave}
+                  disabled={busyAction !== null || !canPublishOfficialReply(selectedProposal, statusDraft)}
+                >
+                  {busyAction === `${selectedProposal.id}:reply`
+                    ? '공개 중…'
+                    : selectedProposal.official_reply_content
+                      ? '공식 답변 수정 공개'
+                      : '답변과 처리 상태 공개'}
+                </Btn>
               </section>
 
               <section className="admin-drawer-section">

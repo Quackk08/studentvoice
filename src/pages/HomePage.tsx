@@ -266,7 +266,7 @@ export default function HomePage() {
     author: d.is_anonymous ? `익명 · ${d.author_grade ?? '?'}학년` : (d.author_name ?? `${d.author_grade ?? '?'}학년 학생`),
     when: relativeTime(d.created_at),
     comments: d.comment_count,
-    hasAnswer: Boolean(getDisplayableOfficialReply(d.official_replies)),
+    hasAnswer: Boolean(getDisplayableOfficialReply(d.official_replies, d.status)),
   })
 
   return (
@@ -451,7 +451,7 @@ export default function HomePage() {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                         <TagPill>{s.category}</TagPill>
-                        {getDisplayableOfficialReply(s.official_replies) && <Badge tone="brandSoft">학생회 답변</Badge>}
+                        {getDisplayableOfficialReply(s.official_replies, s.status) && <Badge tone="brandSoft">학생회 답변</Badge>}
                         <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
                           {new Date(s.created_at).toLocaleDateString('ko-KR')}
                         </span>

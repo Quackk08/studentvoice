@@ -5,7 +5,6 @@ import {
   adminUpdateStatus,
   announceDataChanged,
   dismissReport,
-  upsertOfficialReply,
 } from './useProposals'
 import type {
   AdminActivityItem,
@@ -389,14 +388,24 @@ export async function resolveAdminReports(proposalId: string, reason: string) {
   return { error: error?.message ?? null }
 }
 
-export async function saveAdminOfficialReply(proposalId: string, content: string, signedBy: string) {
-  const { error } = await supabase.rpc('upsert_official_reply_as_admin', {
-    p_proposal_id: proposalId,
-    p_content: content.trim(),
-    p_signed_by: signedBy.trim(),
+export async function publishAdminOfficialReply(params: {
+  proposalId: string
+  content: string
+  signedBy: string
+  newStatus: 'discussing' | 'done' | 'rejected'
+  publicMessage: string
+  internalNote?: string
+}) {
+  const { error } = await supabase.rpc('publish_official_reply_as_admin', {
+    p_proposal_id: params.proposalId,
+    p_content: params.content.trim(),
+    p_signed_by: params.signedBy.trim(),
+    p_new_status: params.newStatus,
+    p_public_message: params.publicMessage.trim(),
+    p_internal_note: params.internalNote?.trim() || null,
   })
-  if (isMissingRpc(error, 'upsert_official_reply_as_admin')) {
-    return upsertOfficialReply(proposalId, content, signedBy)
+  if (isMissingRpc(error, 'publish_official_reply_as_admin')) {
+    return { error: '공식 답변 워크플로우 DB 마이그레이션을 먼저 적용해주세요.' }
   }
   if (!error) announceDataChanged()
   return { error: error?.message ?? null }

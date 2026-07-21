@@ -53,6 +53,16 @@ export interface OfficialReply {
   updated_by?: string | null
 }
 
+export interface ProposalStatusEvent {
+  id: string
+  proposal_id: string
+  from_status: Exclude<ProposalStatus, 'blinded'> | null
+  to_status: Exclude<ProposalStatus, 'blinded'>
+  public_message: string | null
+  source: 'admin' | 'system'
+  created_at: string
+}
+
 export interface Report {
   id: string
   proposal_id: string

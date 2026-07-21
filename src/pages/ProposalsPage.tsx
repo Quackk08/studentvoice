@@ -55,7 +55,7 @@ function TagPill({ children }: { children: React.ReactNode }) {
 
 function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
   const isHot = p.vote_count >= 20
-  const hasOfficialReply = Boolean(getDisplayableOfficialReply(p.official_replies))
+  const hasOfficialReply = Boolean(getDisplayableOfficialReply(p.official_replies, p.status))
   return (
     <button
       type="button"
