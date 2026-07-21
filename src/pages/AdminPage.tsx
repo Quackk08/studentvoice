@@ -31,6 +31,7 @@ type AdminSection = 'overview' | 'proposals' | 'reports' | 'members' | 'activity
 type ProposalSort = 'updated' | 'votes' | 'reports' | 'oldest'
 type ConfirmAction = AdminModerationAction | 'resolve_reports'
 type OfficialReplyStatus = 'active' | 'discussing' | 'done' | 'rejected'
+type ProcessingMode = 'status' | 'reply'
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; description: string }[] = [
   { id: 'overview', label: '운영 현황', description: '오늘 처리할 업무' },
@@ -227,6 +228,7 @@ export default function AdminPage() {
   const [internalNote, setInternalNote] = useState('')
   const [replyContent, setReplyContent] = useState('')
   const [replySignedBy, setReplySignedBy] = useState('학생회')
+  const [processingMode, setProcessingMode] = useState<ProcessingMode>('status')
   const [confirmAction, setConfirmAction] = useState<{ action: ConfirmAction; proposal: AdminProposal } | null>(null)
   const [confirmReason, setConfirmReason] = useState('')
   const [busyAction, setBusyAction] = useState<string | null>(null)
@@ -273,9 +275,11 @@ export default function AdminPage() {
     setInternalNote(selectedProposal.latest_internal_note ?? '')
     setReplyContent(selectedProposal.official_reply_content ?? '')
     setReplySignedBy(selectedProposal.official_reply_signed_by ?? (profile?.name ? `${profile.name} 운영진` : '학생회 운영진'))
+    setProcessingMode(['active', 'done', 'rejected'].includes(selectedProposal.status) ? 'reply' : 'status')
   }, [
     profile?.name,
     selectedProposal?.id,
+    selectedProposal?.status,
     selectedProposal?.official_reply_content,
     selectedProposal?.official_reply_signed_by,
   ])
@@ -409,11 +413,12 @@ export default function AdminPage() {
 
   const handleReplySave = async () => {
     if (!selectedProposal) return
-    if (!isOfficialReplyStatus(statusDraft)) {
+    const replyStatus = selectedProposal.status === 'active' ? 'active' : statusDraft
+    if (!isOfficialReplyStatus(replyStatus)) {
       setActionMessage({ tone: 'error', text: '공식 답변과 함께 저장할 처리 상태를 확인해주세요.' })
       return
     }
-    if (!canPublishOfficialReply(selectedProposal, statusDraft)) {
+    if (!canPublishOfficialReply(selectedProposal, replyStatus)) {
       setActionMessage({ tone: 'error', text: '공개 상태의 진행 중 안건 또는 선정된 안건에서만 공식 답변을 공개할 수 있습니다.' })
       return
     }
@@ -432,7 +437,7 @@ export default function AdminPage() {
       proposalId: selectedProposal.id,
       content: validated.value.content,
       signedBy: validated.value.signedBy,
-      newStatus: statusDraft,
+      newStatus: replyStatus,
       publicMessage,
       internalNote,
     })
@@ -443,11 +448,18 @@ export default function AdminPage() {
     }
     setActionMessage({
       tone: 'success',
-      text: statusDraft === 'active'
+      text: replyStatus === 'active'
         ? '공식 답변을 공개했습니다. 안건은 추천을 계속 받습니다.'
         : '공식 답변과 처리 상태를 학생에게 공개했습니다.',
     })
     await refetch()
+  }
+
+  const changeProcessingMode = (mode: ProcessingMode) => {
+    if (!selectedProposal || ['active', 'done', 'rejected'].includes(selectedProposal.status)) return
+    if (mode === 'reply' && !isOfficialReplyStatus(statusDraft)) setStatusDraft('discussing')
+    setProcessingMode(mode)
+    setActionMessage(null)
   }
 
   const handleConfirmedAction = async () => {
@@ -883,103 +895,132 @@ export default function AdminPage() {
               )}
 
               <section className="admin-drawer-section">
-                <div className="admin-drawer-section-title"><div><span>WORKFLOW</span><h3>처리 상태 변경</h3></div><StatusBadge proposal={selectedProposal} /></div>
-                <label className="admin-field">
-                  <span>새 상태</span>
-                  <select
-                    value={statusDraft}
-                    onChange={event => setStatusDraft(event.target.value as Exclude<ProposalStatus, 'blinded'>)}
-                    disabled={selectedProposal.moderation_status !== 'visible'}
-                  >
-                    {STATUS_OPTIONS.map(status => (
-                      <option
-                        key={status}
-                        value={status}
-                        disabled={(status !== 'active' && selectedProposal.vote_count < 30)
-                          || ((selectedProposal.status === 'done' || selectedProposal.status === 'rejected') && status !== selectedProposal.status)}
-                      >
-                        {PROPOSAL_STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {selectedProposal.vote_count < 30 && (
-                  <div className="admin-workflow-gate" role="note">
-                    선정까지 {30 - selectedProposal.vote_count}표가 남아 처리 단계 변경이 잠겨 있습니다.
+                <div className="admin-drawer-section-title">
+                  <div><span>PROPOSAL HANDLING</span><h3>안건 처리</h3></div>
+                  <StatusBadge proposal={selectedProposal} />
+                </div>
+
+                {selectedProposal.status === 'active' ? (
+                  <div className="admin-process-summary" role="note">
+                    <strong>30표 전 공식 답변</strong>
+                    <span>답변을 공개해도 안건은 진행 중으로 유지되며 추천을 계속 받습니다.</span>
+                  </div>
+                ) : selectedProposal.status === 'done' || selectedProposal.status === 'rejected' ? (
+                  <div className="admin-process-summary" role="note">
+                    <strong>처리 완료 안건</strong>
+                    <span>확정된 상태는 유지되며 기존 공식 답변만 수정해 다시 공개할 수 있습니다.</span>
+                  </div>
+                ) : (
+                  <div className="admin-process-mode" role="tablist" aria-label="안건 처리 방식">
+                    <button type="button" role="tab" aria-selected={processingMode === 'status'} className={processingMode === 'status' ? 'active' : ''} onClick={() => changeProcessingMode('status')}>
+                      <strong>상태만 변경</strong><span>답변 없이 처리 단계 기록</span>
+                    </button>
+                    <button type="button" role="tab" aria-selected={processingMode === 'reply'} className={processingMode === 'reply' ? 'active' : ''} onClick={() => changeProcessingMode('reply')}>
+                      <strong>공식 답변 공개</strong><span>답변과 처리 상태 함께 저장</span>
+                    </button>
                   </div>
                 )}
+
+                {selectedProposal.status !== 'active' && selectedProposal.status !== 'done' && selectedProposal.status !== 'rejected' && (
+                  <label className="admin-field">
+                    <span>{processingMode === 'reply' ? '답변 공개 후 상태' : '새 상태'}</span>
+                    <select
+                      value={statusDraft}
+                      onChange={event => setStatusDraft(event.target.value as Exclude<ProposalStatus, 'blinded'>)}
+                      disabled={selectedProposal.moderation_status !== 'visible'}
+                    >
+                      {STATUS_OPTIONS.map(status => (
+                        <option
+                          key={status}
+                          value={status}
+                          disabled={(status !== 'active' && selectedProposal.vote_count < 30)
+                            || ((selectedProposal.status === 'done' || selectedProposal.status === 'rejected') && status !== selectedProposal.status)
+                            || (processingMode === 'reply' && !['discussing', 'done', 'rejected'].includes(status))}
+                        >
+                          {PROPOSAL_STATUS_LABELS[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
                 {!isAdminConsoleV2 && (
                   <div className="admin-workflow-gate" role="note">
-                    호환 모드에서는 상태만 변경됩니다. 공개 처리 내용과 내부 메모는 DB v2 적용 후 저장할 수 있습니다.
+                    처리 기록 저장을 위해 관리자 콘솔 DB 마이그레이션이 필요합니다.
                   </div>
                 )}
-                {(statusDraft === 'done' || statusDraft === 'rejected') && (
-                  <div className="admin-workflow-gate" role="note">
-                    최종 처리 상태는 아래 공식 답변과 함께 공개해야 합니다.
-                  </div>
-                )}
-                <label className="admin-field">
-                  <span>학생에게 공개할 처리 내용 {statusDraft === 'done' || statusDraft === 'rejected' ? '(필수)' : '(답변 공개 시 필수)'}</span>
-                  <textarea rows={3} value={publicMessage} onChange={event => setPublicMessage(event.target.value)} placeholder="처리 결과나 다음 진행 상황을 작성하세요." maxLength={500} disabled={!isAdminConsoleV2} />
-                </label>
-                <label className="admin-field">
-                  <span>운영진 내부 메모</span>
-                  <textarea rows={2} value={internalNote} onChange={event => setInternalNote(event.target.value)} placeholder="학생에게 공개되지 않는 메모입니다." maxLength={1000} disabled={!isAdminConsoleV2} />
-                </label>
-                <Btn
-                  variant="brand"
-                  size="md"
-                  full
-                  onClick={handleStatusSave}
-                  disabled={busyAction !== null
-                    || selectedProposal.moderation_status !== 'visible'
-                    || (statusDraft !== 'active' && selectedProposal.vote_count < 30)
-                    || statusDraft === 'done'
-                    || statusDraft === 'rejected'
-                    || statusDraft === selectedProposal.status
-                    || Boolean(selectedProposal.official_reply_content && statusDraft !== selectedProposal.status)}
-                >
-                  {busyAction === `${selectedProposal.id}:status` ? '저장 중…' : '상태와 처리 기록 저장'}
-                </Btn>
-              </section>
 
-              <section className="admin-drawer-section">
-                <div className="admin-drawer-section-title"><div><span>OFFICIAL REPLY</span><h3>학생회 공식 답변</h3></div>{selectedProposal.official_reply_content && <Badge tone="brandSoft">등록됨</Badge>}</div>
-                <div className="admin-workflow-gate" role="note">
-                  {selectedProposal.status === 'active'
-                    ? '30표 전 답변은 안건을 진행 중으로 유지하며, 학생 추천은 계속됩니다.'
-                    : '답변 공개 시 위에서 선택한 처리 상태와 공개 처리 내용도 하나의 기록으로 함께 저장됩니다.'}
-                </div>
-                <label className="admin-field">
-                  <span>답변 내용 <small>{replyContent.length} / 1200자</small></span>
-                  <textarea rows={5} value={replyContent} onChange={event => setReplyContent(event.target.value)} placeholder="학생회 공식 입장과 처리 결과를 작성하세요." maxLength={1200} />
-                </label>
-                <label className="admin-field">
-                  <span>공개 답변자 <small>{replySignedBy.length} / 40자</small></span>
-                  <input value={replySignedBy} onChange={event => setReplySignedBy(event.target.value)} placeholder="예: 제35대 학생회 또는 홍길동 학생회장" maxLength={40} />
-                </label>
-                {!canPublishOfficialReply(selectedProposal, statusDraft) && (
-                  <div className="admin-workflow-gate" role="note">
-                    {selectedProposal.status === 'active'
-                      ? '30표 전 답변은 새 상태를 진행 중으로 둔 상태에서 공개할 수 있습니다.'
-                      : '선정 안건은 협의 중, 반영 완료 또는 반려 상태를 선택해야 답변을 공개할 수 있습니다.'}
-                  </div>
+                {processingMode === 'status' && (selectedProposal.status === 'selected' || selectedProposal.status === 'discussing') ? (
+                  <>
+                    {(statusDraft === 'done' || statusDraft === 'rejected') && (
+                      <div className="admin-workflow-gate" role="note">
+                        반영 완료와 반려는 공식 답변 공개 방식으로만 확정할 수 있습니다.
+                      </div>
+                    )}
+                    <label className="admin-field">
+                      <span>학생에게 공개할 처리 내용 <small>선택 · {publicMessage.length} / 500자</small></span>
+                      <textarea rows={3} value={publicMessage} onChange={event => setPublicMessage(event.target.value)} placeholder="상태 변경 이유나 다음 진행 상황을 작성하세요." maxLength={500} disabled={!isAdminConsoleV2} />
+                    </label>
+                    <label className="admin-field">
+                      <span>운영진 내부 메모 <small>학생에게 공개되지 않음</small></span>
+                      <textarea rows={2} value={internalNote} onChange={event => setInternalNote(event.target.value)} placeholder="운영진이 참고할 내용을 작성하세요." maxLength={1000} disabled={!isAdminConsoleV2} />
+                    </label>
+                    <Btn
+                      variant="brand"
+                      size="md"
+                      full
+                      onClick={handleStatusSave}
+                      disabled={busyAction !== null
+                        || selectedProposal.moderation_status !== 'visible'
+                        || (statusDraft !== 'active' && selectedProposal.vote_count < 30)
+                        || statusDraft === 'done'
+                        || statusDraft === 'rejected'
+                        || statusDraft === selectedProposal.status
+                        || Boolean(selectedProposal.official_reply_content && statusDraft !== selectedProposal.status)}
+                    >
+                      {busyAction === `${selectedProposal.id}:status` ? '저장 중…' : '상태만 저장'}
+                    </Btn>
+                  </>
+                ) : (
+                  <>
+                    <label className="admin-field">
+                      <span>학생에게 공개할 처리 안내 <small>필수 · {publicMessage.length} / 500자</small></span>
+                      <textarea rows={3} value={publicMessage} onChange={event => setPublicMessage(event.target.value)} placeholder="답변 요약이나 앞으로의 처리 계획을 작성하세요." maxLength={500} disabled={!isAdminConsoleV2} />
+                    </label>
+                    <label className="admin-field">
+                      <span>공식 답변 <small>필수 · {replyContent.length} / 1200자</small></span>
+                      <textarea rows={5} value={replyContent} onChange={event => setReplyContent(event.target.value)} placeholder="학생회 공식 입장과 처리 결과를 작성하세요." maxLength={1200} />
+                    </label>
+                    <label className="admin-field">
+                      <span>공개 답변자 <small>필수 · {replySignedBy.length} / 40자</small></span>
+                      <input value={replySignedBy} onChange={event => setReplySignedBy(event.target.value)} placeholder="예: 제35대 학생회 또는 홍길동 학생회장" maxLength={40} />
+                    </label>
+                    <label className="admin-field">
+                      <span>운영진 내부 메모 <small>학생에게 공개되지 않음</small></span>
+                      <textarea rows={2} value={internalNote} onChange={event => setInternalNote(event.target.value)} placeholder="운영진이 참고할 내용을 작성하세요." maxLength={1000} disabled={!isAdminConsoleV2} />
+                    </label>
+                    {!canPublishOfficialReply(selectedProposal, selectedProposal.status === 'active' ? 'active' : statusDraft) && (
+                      <div className="admin-workflow-gate" role="note">
+                        선정 안건은 협의 중, 반영 완료 또는 반려 상태를 선택해야 답변을 공개할 수 있습니다.
+                      </div>
+                    )}
+                    <Btn
+                      variant="brand"
+                      size="md"
+                      full
+                      onClick={handleReplySave}
+                      disabled={busyAction !== null || !canPublishOfficialReply(selectedProposal, selectedProposal.status === 'active' ? 'active' : statusDraft)}
+                    >
+                      {busyAction === `${selectedProposal.id}:reply`
+                        ? '공개 중…'
+                        : selectedProposal.official_reply_content
+                          ? '공식 답변 수정 공개'
+                          : selectedProposal.status === 'active'
+                            ? '답변 공개 · 추천 계속 받기'
+                            : '공식 답변과 처리 상태 공개'}
+                    </Btn>
+                  </>
                 )}
-                <Btn
-                  variant="outline"
-                  size="md"
-                  full
-                  onClick={handleReplySave}
-                  disabled={busyAction !== null || !canPublishOfficialReply(selectedProposal, statusDraft)}
-                >
-                  {busyAction === `${selectedProposal.id}:reply`
-                    ? '공개 중…'
-                    : selectedProposal.official_reply_content
-                      ? '공식 답변 수정 공개'
-                      : selectedProposal.status === 'active'
-                        ? '답변 공개 · 추천 계속 받기'
-                        : '답변과 처리 상태 공개'}
-                </Btn>
               </section>
 
               <section className="admin-drawer-section">
