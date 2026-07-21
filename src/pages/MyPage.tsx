@@ -11,7 +11,14 @@ import { getProposalStatusLabel, getProposalStatusTone } from '../lib/proposalSt
 import { supabase } from '../lib/supabase'
 import { COLORS } from '../tokens/tokens'
 import type { BadgeTone } from '../tokens/tokens'
-import type { Proposal } from '../types/database'
+import type { AccountRole, Proposal } from '../types/database'
+
+const ACCOUNT_ROLE_LABELS: Record<AccountRole, string> = {
+  student: '학생',
+  admin: '관리자',
+  teacher: '교사',
+  parent: '학부모',
+}
 
 // ── Helpers ──
 function proposalStatus(p: Proposal): [string, BadgeTone] {
@@ -62,6 +69,7 @@ export default function MyPage() {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { data: myProposals, loading } = useMyProposals(user?.id)
   const { settings: notifSettings, saving: notifSaving, error: notifError, updateSetting } = useNotificationSettings(user?.id)
+  const accountRole = profile?.account_role ?? (profile?.is_admin ? 'admin' : 'student')
 
   // Profile edit state
   const [profileEditing, setProfileEditing] = useState(false)
@@ -297,7 +305,7 @@ export default function MyPage() {
                   </div>
                   <div style={{ fontSize: 13, color: COLORS.inkSub }}>{displayEmail}</div>
                   <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
-                    재학생 계정 · {profile?.is_admin ? '운영자' : '일반 학생'}
+                    {ACCOUNT_ROLE_LABELS[accountRole]} 계정 · {accountRole === 'admin' ? '운영 권한 보유' : '일반 이용 권한'}
                   </div>
                   {profileStatus && (
                     <div style={{ fontSize: 12, color: COLORS.brand, marginTop: 6 }}>{profileStatus}</div>

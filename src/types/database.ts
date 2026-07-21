@@ -3,6 +3,7 @@ export type ProposalCategory = '#시설' | '#급식' | '#교칙' | '#학사' | '
 export type ModerationStatus = 'visible' | 'blinded' | 'trashed'
 export type AdminProposalScope = 'all' | 'near' | 'open' | 'completed' | 'blinded' | 'trashed'
 export type AdminModerationAction = 'blind' | 'unblind' | 'trash' | 'restore' | 'delete'
+export type AccountRole = 'student' | 'admin' | 'teacher' | 'parent'
 
 export interface Profile {
   id: string
@@ -11,6 +12,9 @@ export interface Profile {
   grade: number | null
   class: number | null
   is_admin: boolean
+  account_role?: AccountRole
+  role_updated_at?: string
+  role_updated_by?: string | null
   agreed_to_guidelines: boolean
   created_at: string
 }
@@ -142,4 +146,33 @@ export interface AdminActivityItem {
   action: string
   details: Record<string, unknown>
   createdAt: string
+}
+
+export interface AdminMember {
+  id: string
+  email: string
+  name: string | null
+  grade: number | null
+  class: number | null
+  accountRole: AccountRole
+  isAdmin: boolean
+  agreedToGuidelines: boolean
+  createdAt: string
+  emailConfirmedAt: string | null
+  lastSignInAt: string | null
+  roleUpdatedAt: string | null
+  roleUpdatedBy: string | null
+  proposalCount: number
+  commentCount: number
+  voteCount: number
+  reportCount: number
+}
+
+export interface AdminMemberSummary {
+  total: number
+  students: number
+  admins: number
+  teachers: number
+  parents: number
+  emailUnverified: number
 }

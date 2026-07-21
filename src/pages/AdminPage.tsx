@@ -12,9 +12,12 @@ import {
   transitionAdminProposal,
   useAdminConsole,
 } from '../hooks/useAdminConsole'
+import { updateAdminMemberRole, useAdminMembers } from '../hooks/useAdminMembers'
 import { PROPOSAL_STATUS_LABELS, PROPOSAL_STATUS_TONES } from '../lib/proposalStatus'
 import type {
+  AccountRole,
   AdminActivityItem,
+  AdminMember,
   AdminModerationAction,
   AdminProposal,
   AdminProposalScope,
@@ -23,7 +26,7 @@ import type {
   ProposalStatus,
 } from '../types/database'
 
-type AdminSection = 'overview' | 'proposals' | 'reports' | 'activity'
+type AdminSection = 'overview' | 'proposals' | 'reports' | 'members' | 'activity'
 type ProposalSort = 'updated' | 'votes' | 'reports' | 'oldest'
 type ConfirmAction = AdminModerationAction | 'resolve_reports'
 
@@ -31,6 +34,7 @@ const ADMIN_SECTIONS: { id: AdminSection; label: string; description: string }[]
   { id: 'overview', label: '운영 현황', description: '오늘 처리할 업무' },
   { id: 'proposals', label: '안건 관리', description: '상태·답변 관리' },
   { id: 'reports', label: '신고 관리', description: '블라인드·해제' },
+  { id: 'members', label: '인원 관리', description: '가입자·역할 지정' },
   { id: 'activity', label: '운영 기록', description: '감사 로그' },
 ]
 
@@ -45,6 +49,19 @@ const SCOPE_TABS: { id: AdminProposalScope; label: string }[] = [
 
 const CATEGORIES: ProposalCategory[] = ['#시설', '#급식', '#교칙', '#학사', '#수업', '#복지', '#기타']
 const STATUS_OPTIONS: Exclude<ProposalStatus, 'blinded'>[] = ['active', 'selected', 'discussing', 'done', 'rejected']
+const ACCOUNT_ROLES: AccountRole[] = ['student', 'admin', 'teacher', 'parent']
+const ACCOUNT_ROLE_LABELS: Record<AccountRole, string> = {
+  student: '학생',
+  admin: '관리자',
+  teacher: '교사',
+  parent: '학부모',
+}
+const ACCOUNT_ROLE_DESCRIPTIONS: Record<AccountRole, string> = {
+  student: '일반 안건 제안과 추천·댓글 기능을 이용합니다.',
+  admin: '관리자 콘솔과 운영 기능 전체에 접근합니다.',
+  teacher: '향후 교사 확인 및 학교 협의 기능에 연결됩니다.',
+  parent: '향후 학부모 민원 카테고리와 전용 로그인에 연결됩니다.',
+}
 
 const ACTION_LABELS: Record<ConfirmAction, string> = {
   blind: '블라인드 처리',
@@ -66,6 +83,12 @@ const ACTIVITY_LABELS: Record<string, string> = {
   reports_resolved: '신고 해제',
   reports_dismissed: '신고 해제',
   official_reply_saved: '공식 답변 저장',
+  member_role_changed: '계정 역할 변경',
+}
+
+function AccountRoleBadge({ role }: { role: AccountRole }) {
+  const tone = role === 'admin' ? 'brand' : role === 'teacher' ? 'hold' : role === 'parent' ? 'warn' : 'default'
+  return <Badge tone={tone}>{ACCOUNT_ROLE_LABELS[role]}</Badge>
 }
 
 function formatDate(value: string | null | undefined, includeTime = true) {
@@ -126,11 +149,14 @@ function KpiCard({
 }
 
 function activityDescription(item: AdminActivityItem) {
+  const fromRole = typeof item.details.from_role === 'string' ? ACCOUNT_ROLE_LABELS[item.details.from_role as AccountRole] ?? item.details.from_role : null
+  const toRole = typeof item.details.to_role === 'string' ? ACCOUNT_ROLE_LABELS[item.details.to_role as AccountRole] ?? item.details.to_role : null
   const from = typeof item.details.from === 'string' ? PROPOSAL_STATUS_LABELS[item.details.from as ProposalStatus] ?? item.details.from : null
   const to = typeof item.details.to === 'string' ? PROPOSAL_STATUS_LABELS[item.details.to as ProposalStatus] ?? item.details.to : null
   const reason = typeof item.details.reason === 'string' ? item.details.reason : null
   const publicMessage = typeof item.details.public_message === 'string' ? item.details.public_message : null
   const count = typeof item.details.count === 'number' ? item.details.count : null
+  if (fromRole && toRole) return `${fromRole} → ${toRole}${reason ? ` · ${reason}` : ''}`
   if (from && to) return `${from} → ${to}${publicMessage ? ` · ${publicMessage}` : ''}`
   if (reason) return reason
   if (count != null) return `신고 ${count}건 처리`
@@ -182,6 +208,20 @@ export default function AdminPage() {
   const [confirmReason, setConfirmReason] = useState('')
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberRoleFilter, setMemberRoleFilter] = useState<AccountRole | 'all'>('all')
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  const [memberRoleDraft, setMemberRoleDraft] = useState<AccountRole>('student')
+  const [memberRoleReason, setMemberRoleReason] = useState('')
+  const [memberRoleError, setMemberRoleError] = useState<string | null>(null)
+  const {
+    members,
+    summary: memberSummary,
+    available: memberRolesAvailable,
+    loading: membersLoading,
+    error: membersError,
+    refetch: refetchMembers,
+  } = useAdminMembers({ enabled: section === 'members', search: memberSearch, role: memberRoleFilter })
 
   const selectedProposal = useMemo(() => {
     if (!selectedId) return null
@@ -189,6 +229,11 @@ export default function AdminPage() {
       ?? reports.find(item => item.proposal.id === selectedId)?.proposal
       ?? null
   }, [proposals, reports, selectedId])
+
+  const selectedMember = useMemo(
+    () => selectedMemberId ? members.find(member => member.id === selectedMemberId) ?? null : null,
+    [members, selectedMemberId],
+  )
 
   useEffect(() => {
     if (!selectedProposal) return
@@ -199,6 +244,13 @@ export default function AdminPage() {
     setReplyContent(selectedProposal.official_reply_content ?? '')
     setReplySignedBy(selectedProposal.official_reply_signed_by ?? '학생회')
   }, [selectedProposal?.id])
+
+  useEffect(() => {
+    if (!selectedMember) return
+    setMemberRoleDraft(selectedMember.accountRole)
+    setMemberRoleReason('')
+    setMemberRoleError(null)
+  }, [selectedMember?.id])
 
   const filteredProposals = useMemo(() => {
     const needle = search.trim().toLowerCase()
@@ -253,10 +305,32 @@ export default function AdminPage() {
 
   const setSection = (next: AdminSection) => {
     setSearchParams(next === 'overview' ? {} : { view: next })
-    if (next === 'reports') setSelectedId(null)
+    if (next !== 'proposals' && next !== 'reports') setSelectedId(null)
+    if (next !== 'members') setSelectedMemberId(null)
   }
 
-  const openProposal = (proposal: AdminProposal) => setSelectedId(proposal.id)
+  const openProposal = (proposal: AdminProposal) => {
+    setSelectedMemberId(null)
+    setSelectedId(proposal.id)
+  }
+
+  const openMember = (member: AdminMember) => {
+    setSelectedId(null)
+    setSelectedMemberId(member.id)
+  }
+
+  const openActivityTarget = (item: AdminActivityItem) => {
+    if (item.proposalId) {
+      setSelectedMemberId(null)
+      setSelectedId(item.proposalId)
+      return
+    }
+    if (typeof item.details.member_id === 'string') {
+      setSelectedId(null)
+      setSelectedMemberId(item.details.member_id)
+      setSection('members')
+    }
+  }
 
   const handleStatusSave = async () => {
     if (!selectedProposal) return
@@ -327,6 +401,54 @@ export default function AdminPage() {
     if (action === 'delete') setSelectedId(null)
     await refetch()
   }
+
+  const handleMemberRoleSave = async () => {
+    if (!selectedMember) return
+    if (!memberRolesAvailable) {
+      setMemberRoleError('역할 관리 DB 적용 후 변경할 수 있습니다.')
+      return
+    }
+    if (memberRoleDraft === selectedMember.accountRole) {
+      setMemberRoleError('현재 역할과 다른 역할을 선택해주세요.')
+      return
+    }
+    if (selectedMember.id === profile?.id && memberRoleDraft !== 'admin') {
+      setMemberRoleError('현재 로그인한 자신의 관리자 역할은 해제할 수 없습니다.')
+      return
+    }
+    if (selectedMember.accountRole === 'admin' && memberRoleDraft !== 'admin' && memberSummary.admins <= 1) {
+      setMemberRoleError('최소 한 명의 관리자가 남아 있어야 합니다.')
+      return
+    }
+    if (memberRoleReason.trim().length < 3) {
+      setMemberRoleError('역할 변경 사유를 3자 이상 입력해주세요.')
+      return
+    }
+
+    setBusyAction(`${selectedMember.id}:role`)
+    setMemberRoleError(null)
+    const result = await updateAdminMemberRole({
+      memberId: selectedMember.id,
+      newRole: memberRoleDraft,
+      reason: memberRoleReason,
+    })
+    setBusyAction(null)
+    if (result.error) {
+      setMemberRoleError(result.error)
+      return
+    }
+    setActionMessage({
+      tone: 'success',
+      text: `${selectedMember.name ?? selectedMember.email} 계정을 ${ACCOUNT_ROLE_LABELS[memberRoleDraft]} 역할로 변경했습니다.`,
+    })
+    setSelectedMemberId(null)
+    await Promise.all([refetchMembers(), refetch()])
+  }
+
+  const memberAdminRoleLocked = Boolean(
+    selectedMember?.accountRole === 'admin'
+    && (selectedMember.id === profile?.id || memberSummary.admins <= 1),
+  )
 
   return (
     <AppLayout active="admin" isAdmin={profile?.is_admin} showFooter={false}>
@@ -442,9 +564,9 @@ export default function AdminPage() {
                   ) : (
                     <div className="admin-activity-compact">
                       {activity.slice(0, 6).map(item => (
-                        <button key={item.id} type="button" onClick={() => item.proposalId && setSelectedId(item.proposalId)}>
+                        <button key={item.id} type="button" onClick={() => openActivityTarget(item)} disabled={!item.proposalId && typeof item.details.member_id !== 'string'}>
                           <span />
-                          <div><strong>{ACTIVITY_LABELS[item.action] ?? item.action}</strong><small>{item.proposalTitle ?? '삭제된 안건'} · {relativeTime(item.createdAt)}</small></div>
+                          <div><strong>{ACTIVITY_LABELS[item.action] ?? item.action}</strong><small>{item.proposalTitle ?? '대상 정보 없음'} · {relativeTime(item.createdAt)}</small></div>
                         </button>
                       ))}
                     </div>
@@ -549,6 +671,84 @@ export default function AdminPage() {
             </>
           )}
 
+          {section === 'members' && (
+            <>
+              <section className="admin-section-heading admin-section-heading-row">
+                <div><span>MEMBER DIRECTORY</span><h2>인원 관리</h2></div>
+                <p>가입자를 확인하고 학생·관리자·교사·학부모 역할을 안전하게 지정합니다.</p>
+              </section>
+
+              <div className="admin-member-kpi-grid">
+                <KpiCard label="전체 가입자" value={memberSummary.total} detail={`이메일 미인증 ${memberSummary.emailUnverified}명`} onClick={() => setMemberRoleFilter('all')} />
+                <KpiCard label="학생" value={memberSummary.students} detail="일반 학생 계정" tone="brand" onClick={() => setMemberRoleFilter('student')} />
+                <KpiCard label="관리자" value={memberSummary.admins} detail="운영 권한 보유" tone="brand" onClick={() => setMemberRoleFilter('admin')} />
+                <KpiCard label="교사" value={memberSummary.teachers} detail="향후 교사 기능 연결" tone="hold" onClick={() => setMemberRoleFilter('teacher')} />
+                <KpiCard label="학부모" value={memberSummary.parents} detail="향후 민원 기능 연결" tone="warn" onClick={() => setMemberRoleFilter('parent')} />
+              </div>
+
+              {membersError && (
+                <div className="admin-alert admin-alert-error" role="alert">
+                  <div><strong>가입자 목록을 불러오지 못했습니다.</strong><span>{membersError}</span></div>
+                  <button type="button" onClick={refetchMembers}>다시 불러오기</button>
+                </div>
+              )}
+
+              {!memberRolesAvailable && !membersLoading && (
+                <div className="admin-alert admin-alert-compat" role="note">
+                  <div><strong>인원 관리 호환 모드</strong><span>현재는 가입자와 기존 관리자만 조회할 수 있습니다. 역할 관리 마이그레이션 적용 후 교사·학부모 지정과 인증·활동 정보가 활성화됩니다.</span></div>
+                </div>
+              )}
+
+              <section className="admin-panel admin-proposal-panel">
+                <div className="admin-filter-tabs" role="tablist" aria-label="가입자 역할 필터">
+                  <button type="button" className={memberRoleFilter === 'all' ? 'active' : ''} onClick={() => setMemberRoleFilter('all')}>전체 <span>{memberSummary.total}</span></button>
+                  {ACCOUNT_ROLES.map(role => {
+                    const count = role === 'student' ? memberSummary.students : role === 'admin' ? memberSummary.admins : role === 'teacher' ? memberSummary.teachers : memberSummary.parents
+                    return <button key={role} type="button" className={memberRoleFilter === role ? 'active' : ''} onClick={() => setMemberRoleFilter(role)}>{ACCOUNT_ROLE_LABELS[role]} <span>{count}</span></button>
+                  })}
+                </div>
+                <div className="admin-filter-bar">
+                  <label className="admin-search-field">
+                    <span>⌕</span>
+                    <input value={memberSearch} onChange={event => setMemberSearch(event.target.value)} placeholder="이름 또는 이메일 검색" aria-label="가입자 검색" />
+                  </label>
+                </div>
+                <div className="admin-table-summary"><strong>{members.length}명</strong><span>최근 가입순 · 최대 100명 표시</span></div>
+
+                {membersLoading ? (
+                  <div className="admin-empty">가입자 목록을 불러오는 중입니다.</div>
+                ) : members.length === 0 ? (
+                  <div className="admin-empty"><strong>조건에 맞는 가입자가 없습니다.</strong><span>검색어 또는 역할 필터를 변경해보세요.</span></div>
+                ) : (
+                  <div className="admin-table-wrap">
+                    <table className="admin-member-table">
+                      <thead><tr><th>가입자</th><th>학교 정보</th><th>역할</th><th>인증</th><th>활동</th><th>최근 로그인</th><th>가입일</th><th aria-label="열기" /></tr></thead>
+                      <tbody>
+                        {members.map(member => (
+                          <tr key={member.id} onClick={() => openMember(member)}>
+                            <td>
+                              <div className="admin-member-identity">
+                                <span>{(member.name ?? member.email).slice(0, 1).toUpperCase()}</span>
+                                <div><strong>{member.name ?? '이름 미등록'}{member.id === profile?.id && <em>내 계정</em>}</strong><small>{member.email}</small></div>
+                              </div>
+                            </td>
+                            <td><span className="admin-member-school">{member.grade ? `${member.grade}학년` : '학년 없음'} · {member.class ? `${member.class}반` : '반 없음'}</span></td>
+                            <td><AccountRoleBadge role={member.accountRole} /></td>
+                            <td><div className="admin-member-verification"><strong className={member.emailConfirmedAt ? 'verified' : ''}>{memberRolesAvailable ? (member.emailConfirmedAt ? '이메일 인증' : '미인증') : '확인 불가'}</strong><small>{member.agreedToGuidelines ? '이용수칙 동의' : '동의 대기'}</small></div></td>
+                            <td><div className="admin-member-activity"><span>안건 {member.proposalCount}</span><span>댓글 {member.commentCount}</span><span>추천 {member.voteCount}</span></div></td>
+                            <td><span className="admin-date-cell">{member.lastSignInAt ? relativeTime(member.lastSignInAt) : '기록 없음'}<small>{formatDate(member.lastSignInAt, false)}</small></span></td>
+                            <td><span className="admin-date-cell">{relativeTime(member.createdAt)}<small>{formatDate(member.createdAt, false)}</small></span></td>
+                            <td><button type="button" className="admin-row-open" onClick={event => { event.stopPropagation(); openMember(member) }} aria-label={`${member.name ?? member.email} 계정 관리`}>→</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+
           {section === 'activity' && (
             <>
               <section className="admin-section-heading admin-section-heading-row">
@@ -567,7 +767,7 @@ export default function AdminPage() {
                         <span className="admin-timeline-dot" />
                         <div className="admin-timeline-main">
                           <div><Badge tone={item.action.includes('delete') || item.action.includes('blind') ? 'warn' : item.action.includes('status') || item.action.includes('selected') ? 'brandSoft' : 'default'}>{ACTIVITY_LABELS[item.action] ?? item.action}</Badge><time>{formatDate(item.createdAt)}</time></div>
-                          <button type="button" onClick={() => item.proposalId && setSelectedId(item.proposalId)} disabled={!item.proposalId}>{item.proposalTitle ?? '삭제된 안건'}</button>
+                          <button type="button" onClick={() => openActivityTarget(item)} disabled={!item.proposalId && typeof item.details.member_id !== 'string'}>{item.proposalTitle ?? '대상 정보 없음'}</button>
                           <p>{activityDescription(item)}</p>
                           <small>{item.adminName ?? item.adminEmail ?? '시스템 자동 처리'}</small>
                         </div>
@@ -672,6 +872,85 @@ export default function AdminPage() {
                   <Btn variant="danger" size="sm" onClick={() => { setConfirmAction({ action: 'delete', proposal: selectedProposal }); setConfirmReason('') }}>영구 삭제</Btn>
                 </div>
                 <Btn variant="ghost" size="sm" full onClick={() => navigate(`/proposals/${selectedProposal.id}`)}>학생 화면 원문 열기 →</Btn>
+              </section>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {selectedMember && (
+        <div className="admin-drawer-backdrop" role="presentation" onMouseDown={() => setSelectedMemberId(null)}>
+          <aside className="admin-detail-drawer" role="dialog" aria-modal="true" aria-label="가입자 계정 관리" onMouseDown={event => event.stopPropagation()}>
+            <div className="admin-drawer-header">
+              <div><span>MEMBER PROFILE</span><AccountRoleBadge role={selectedMember.accountRole} /></div>
+              <button type="button" onClick={() => setSelectedMemberId(null)} aria-label="계정 관리 패널 닫기">×</button>
+            </div>
+            <div className="admin-drawer-content">
+              <div className="admin-member-drawer-title">
+                <span>{(selectedMember.name ?? selectedMember.email).slice(0, 1).toUpperCase()}</span>
+                <div><h2>{selectedMember.name ?? '이름 미등록'}</h2><p>{selectedMember.email}</p></div>
+              </div>
+
+              <div className="admin-drawer-stats">
+                <span><strong>{selectedMember.proposalCount}</strong>안건</span>
+                <span><strong>{selectedMember.commentCount}</strong>댓글</span>
+                <span><strong>{selectedMember.voteCount}</strong>추천</span>
+                <span className={selectedMember.reportCount ? 'warn' : ''}><strong>{selectedMember.reportCount}</strong>신고</span>
+              </div>
+
+              <section className="admin-drawer-section admin-member-account-card">
+                <div><span>계정 정보</span>{selectedMember.id === profile?.id && <Badge tone="brandSoft">현재 로그인</Badge>}</div>
+                <dl>
+                  <div><dt>학교 정보</dt><dd>{selectedMember.grade ? `${selectedMember.grade}학년` : '학년 없음'} · {selectedMember.class ? `${selectedMember.class}반` : '반 없음'}</dd></div>
+                  <div><dt>이메일 인증</dt><dd>{memberRolesAvailable ? (selectedMember.emailConfirmedAt ? formatDate(selectedMember.emailConfirmedAt) : '인증 대기') : 'DB 적용 후 확인'}</dd></div>
+                  <div><dt>이용수칙</dt><dd>{selectedMember.agreedToGuidelines ? '동의 완료' : '동의 대기'}</dd></div>
+                  <div><dt>최근 로그인</dt><dd>{selectedMember.lastSignInAt ? formatDate(selectedMember.lastSignInAt) : '기록 없음'}</dd></div>
+                  <div><dt>가입일</dt><dd>{formatDate(selectedMember.createdAt)}</dd></div>
+                </dl>
+              </section>
+
+              <section className="admin-drawer-section">
+                <div className="admin-drawer-section-title"><div><span>ACCESS CONTROL</span><h3>계정 역할 지정</h3></div><AccountRoleBadge role={selectedMember.accountRole} /></div>
+                {!memberRolesAvailable && (
+                  <div className="admin-workflow-gate" role="note">현재는 조회만 가능합니다. 인원 관리 마이그레이션 적용 후 역할을 변경할 수 있습니다.</div>
+                )}
+                {memberAdminRoleLocked && (
+                  <div className="admin-workflow-gate" role="note">
+                    {selectedMember.id === profile?.id ? '자신의 관리자 권한은 직접 해제할 수 없습니다.' : '마지막 관리자의 권한은 해제할 수 없습니다.'}
+                  </div>
+                )}
+                <label className="admin-field">
+                  <span>새 역할</span>
+                  <select value={memberRoleDraft} onChange={event => { setMemberRoleDraft(event.target.value as AccountRole); setMemberRoleError(null) }} disabled={!memberRolesAvailable || busyAction !== null}>
+                    {ACCOUNT_ROLES.map(role => <option key={role} value={role} disabled={memberAdminRoleLocked && role !== 'admin'}>{ACCOUNT_ROLE_LABELS[role]}</option>)}
+                  </select>
+                </label>
+                <div className="admin-role-description"><strong>{ACCOUNT_ROLE_LABELS[memberRoleDraft]}</strong><span>{ACCOUNT_ROLE_DESCRIPTIONS[memberRoleDraft]}</span></div>
+                <label className="admin-field">
+                  <span>변경 사유</span>
+                  <textarea rows={3} value={memberRoleReason} onChange={event => { setMemberRoleReason(event.target.value); setMemberRoleError(null) }} placeholder="권한 부여 또는 회수 사유를 3자 이상 입력하세요." maxLength={300} disabled={!memberRolesAvailable || busyAction !== null} />
+                </label>
+                {memberRoleError && <div className="admin-inline-error" role="alert">{memberRoleError}</div>}
+                <Btn
+                  variant="brand"
+                  size="md"
+                  full
+                  onClick={handleMemberRoleSave}
+                  disabled={!memberRolesAvailable || busyAction !== null || memberRoleDraft === selectedMember.accountRole || (memberAdminRoleLocked && memberRoleDraft !== 'admin')}
+                >
+                  {busyAction === `${selectedMember.id}:role` ? '역할 변경 중…' : '역할 변경 및 기록 저장'}
+                </Btn>
+              </section>
+
+              <section className="admin-drawer-section">
+                <div className="admin-drawer-section-title"><div><span>ROLE POLICY</span><h3>역할 운영 기준</h3></div></div>
+                <ul className="admin-role-policy-list">
+                  <li>신규 가입자는 기본적으로 학생 역할을 부여받습니다.</li>
+                  <li>관리자 역할만 관리자 콘솔과 운영 기능에 접근합니다.</li>
+                  <li>모든 역할 변경에는 사유와 담당 관리자 기록이 남습니다.</li>
+                  <li>교사·학부모는 향후 전용 인증 및 기능과 연결됩니다.</li>
+                </ul>
+                <small className="admin-role-updated">최근 역할 변경: {selectedMember.roleUpdatedAt ? formatDate(selectedMember.roleUpdatedAt) : '기록 없음'}</small>
               </section>
             </div>
           </aside>
