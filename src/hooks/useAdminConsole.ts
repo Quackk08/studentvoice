@@ -21,7 +21,7 @@ import type {
 
 type ApiError = { code?: string; message?: string } | null
 
-const LEGACY_ADMIN_SELECT = '*, profiles(id, name, email, grade, class), official_replies(*)'
+const LEGACY_ADMIN_SELECT = '*, author_profile:profiles!proposals_author_id_fkey(id, name, email, grade, class), official_replies(*)'
 const DATA_CHANGED_EVENT = 'studentvoice:data-changed'
 
 const EMPTY_STATS: AdminDashboardStats = {
@@ -70,7 +70,7 @@ function asNumber(value: unknown) {
 
 function normalizeAdminProposal(value: unknown): AdminProposal {
   const row = asRecord(value) ?? {}
-  const profileValue = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
+  const profileValue = Array.isArray(row.author_profile) ? row.author_profile[0] : row.author_profile
   const profile = asRecord(profileValue)
   const replies = Array.isArray(row.official_replies) ? row.official_replies : []
   const firstReply = asRecord(replies[0])

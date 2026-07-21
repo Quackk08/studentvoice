@@ -31,7 +31,8 @@ export interface UserNotification {
 }
 
 const DATA_CHANGED_EVENT = 'studentvoice:data-changed'
-const LEGACY_PROPOSAL_SELECT = '*, profiles(id, name, email, grade, class), official_replies(*)'
+const PROPOSAL_LOAD_ERROR = '안건을 불러오지 못했습니다. 페이지를 새로고침하거나 잠시 후 다시 시도해주세요.'
+const LEGACY_PROPOSAL_SELECT = '*, author_profile:profiles!proposals_author_id_fkey(id, name, email, grade, class), official_replies(*)'
 
 type ProposalQueryResult = {
   data: unknown
@@ -67,9 +68,9 @@ function isMissingCreateProposalRpc(error: ProposalQueryResult['error']) {
 }
 
 function normalizeProposalRow(row: Record<string, unknown>): Proposal {
-  const relatedProfile = Array.isArray(row.profiles)
-    ? row.profiles[0] as Record<string, unknown> | undefined
-    : row.profiles as Record<string, unknown> | null | undefined
+  const relatedProfile = Array.isArray(row.author_profile)
+    ? row.author_profile[0] as Record<string, unknown> | undefined
+    : row.author_profile as Record<string, unknown> | null | undefined
 
   return {
     ...row,
@@ -206,7 +207,7 @@ export function usePopularProposals() {
       .gte('vote_count', 20)
       .order('vote_count', { ascending: false })
       .limit(10))
-    if (error) setError(error.message ?? '안건을 불러오지 못했습니다.')
+    if (error) setError(PROPOSAL_LOAD_ERROR)
     else { setData((data ?? []) as Proposal[]); setError(null) }
     setLoading(false)
   }, [])
@@ -294,7 +295,7 @@ export function useProposal(id: string) {
       .select(columns)
       .eq('id', id)
       .single())
-    if (error) setError(error.message ?? '안건을 불러오지 못했습니다.')
+    if (error) setError(PROPOSAL_LOAD_ERROR)
     else setData(data as Proposal)
     setLoading(false)
   }, [id])
@@ -342,7 +343,7 @@ export function useAllProposals(
       }).then(({ data, error }) => {
         if (error) {
           setData([])
-          setError(error.message ?? '진행 중인 안건을 불러오지 못했습니다.')
+          setError(PROPOSAL_LOAD_ERROR)
         } else {
           setData((data ?? []) as Proposal[])
           setError(null)
