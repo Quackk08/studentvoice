@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
 import Btn from '../components/shared/Btn'
+import OfficialReplyCard, { getDisplayableOfficialReply } from '../components/shared/OfficialReplyCard'
 import { useAuth } from '../contexts/AuthContext'
 import { useArchive } from '../hooks/useProposals'
 import { COLORS } from '../tokens/tokens'
@@ -214,7 +215,7 @@ export default function ArchivePage() {
             {data.map((a) => {
               const statusLabel = getProposalStatusLabel(a.status)
               const statusTone = getProposalStatusTone(a.status)
-              const reply = a.official_replies?.[0]
+              const reply = getDisplayableOfficialReply(a.official_replies)
               return (
                 <div
                   className="responsive-grid"
@@ -245,27 +246,8 @@ export default function ArchivePage() {
 
                     {/* Official reply */}
                     {reply ? (
-                      <div
-                        style={{
-                          marginTop: 16, padding: '14px 16px',
-                          background: COLORS.surfaceAlt, borderRadius: 10,
-                          borderLeft: `3px solid ${COLORS.brand}`,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 10, fontWeight: 700, letterSpacing: '0.14em',
-                            color: COLORS.brand, marginBottom: 6,
-                          }}
-                        >
-                          OFFICIAL REPLY
-                        </div>
-                        <p style={{ fontSize: 13, color: COLORS.ink, margin: 0, lineHeight: 1.65 }}>
-                          {reply.content}
-                        </p>
-                        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 10 }}>
-                          — {reply.signed_by}
-                        </div>
+                      <div style={{ marginTop: 16 }}>
+                        <OfficialReplyCard reply={reply} compact />
                       </div>
                     ) : (
                       <div

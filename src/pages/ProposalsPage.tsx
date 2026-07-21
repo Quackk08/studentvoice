@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
+import { getDisplayableOfficialReply } from '../components/shared/OfficialReplyCard'
 import ProgressBar from '../components/shared/ProgressBar'
 import { useAuth } from '../contexts/AuthContext'
 import { useAllProposals } from '../hooks/useProposals'
@@ -54,6 +55,7 @@ function TagPill({ children }: { children: React.ReactNode }) {
 
 function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
   const isHot = p.vote_count >= 20
+  const hasOfficialReply = Boolean(getDisplayableOfficialReply(p.official_replies))
   return (
     <button
       type="button"
@@ -80,6 +82,7 @@ function ProposalCard({ p, onClick }: { p: Proposal; onClick: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         <TagPill>{p.category}</TagPill>
         {isHot && <Badge tone="fire">🔥 인기</Badge>}
+        {hasOfficialReply && <Badge tone="brandSoft">학생회 답변</Badge>}
         <span style={{ marginLeft: 'auto', fontSize: 11, color: COLORS.inkMuted, flexShrink: 0 }}>
           {relativeTime(p.created_at)}
         </span>

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router'
 import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
+import { getDisplayableOfficialReply } from '../components/shared/OfficialReplyCard'
 import ProgressBar from '../components/shared/ProgressBar'
 import { useAuth } from '../contexts/AuthContext'
 import { usePopularProposals, useSelectedProposals, useHomeStats } from '../hooks/useProposals'
@@ -93,7 +94,7 @@ function SectionHeader({
 }
 
 interface PopularCardData {
-  cat: string; votes: number; max: number; title: string; body: string; author: string; when: string; comments: number
+  cat: string; votes: number; max: number; title: string; body: string; author: string; when: string; comments: number; hasAnswer: boolean
 }
 
 function PopularCard({
@@ -126,7 +127,10 @@ function PopularCard({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <TagPill>{d.cat}</TagPill>
-        <Badge tone="fire">🔥 인기 급상승</Badge>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
+          {d.hasAnswer && <Badge tone="brandSoft">학생회 답변</Badge>}
+          <Badge tone="fire">🔥 인기 급상승</Badge>
+        </div>
       </div>
       <h3
         style={{
@@ -262,6 +266,7 @@ export default function HomePage() {
     author: d.is_anonymous ? `익명 · ${d.author_grade ?? '?'}학년` : (d.author_name ?? `${d.author_grade ?? '?'}학년 학생`),
     when: relativeTime(d.created_at),
     comments: d.comment_count,
+    hasAnswer: Boolean(getDisplayableOfficialReply(d.official_replies)),
   })
 
   return (
@@ -446,6 +451,7 @@ export default function HomePage() {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                         <TagPill>{s.category}</TagPill>
+                        {getDisplayableOfficialReply(s.official_replies) && <Badge tone="brandSoft">학생회 답변</Badge>}
                         <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
                           {new Date(s.created_at).toLocaleDateString('ko-KR')}
                         </span>

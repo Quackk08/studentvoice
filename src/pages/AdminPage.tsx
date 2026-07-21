@@ -14,6 +14,7 @@ import {
 } from '../hooks/useAdminConsole'
 import { updateAdminMemberRole, useAdminMembers } from '../hooks/useAdminMembers'
 import { PROPOSAL_STATUS_LABELS, PROPOSAL_STATUS_TONES } from '../lib/proposalStatus'
+import { validateOfficialReply } from '../lib/security'
 import type {
   AccountRole,
   AdminActivityItem,
@@ -242,8 +243,13 @@ export default function AdminPage() {
     setPublicMessage(selectedProposal.latest_public_message ?? '')
     setInternalNote(selectedProposal.latest_internal_note ?? '')
     setReplyContent(selectedProposal.official_reply_content ?? '')
-    setReplySignedBy(selectedProposal.official_reply_signed_by ?? '학생회')
-  }, [selectedProposal?.id])
+    setReplySignedBy(selectedProposal.official_reply_signed_by ?? (profile?.name ? `${profile.name} 운영진` : '학생회 운영진'))
+  }, [
+    profile?.name,
+    selectedProposal?.id,
+    selectedProposal?.official_reply_content,
+    selectedProposal?.official_reply_signed_by,
+  ])
 
   useEffect(() => {
     if (!selectedMember) return
@@ -362,13 +368,14 @@ export default function AdminPage() {
 
   const handleReplySave = async () => {
     if (!selectedProposal) return
-    if (replyContent.trim().length < 3 || replySignedBy.trim().length < 2) {
-      setActionMessage({ tone: 'error', text: '공식 답변 내용과 서명자를 확인해주세요.' })
+    const validated = validateOfficialReply({ content: replyContent, signedBy: replySignedBy })
+    if (validated.error || !validated.value) {
+      setActionMessage({ tone: 'error', text: validated.error ?? '공식 답변 내용과 답변자를 확인해주세요.' })
       return
     }
     setBusyAction(`${selectedProposal.id}:reply`)
     setActionMessage(null)
-    const result = await saveAdminOfficialReply(selectedProposal.id, replyContent, replySignedBy)
+    const result = await saveAdminOfficialReply(selectedProposal.id, validated.value.content, validated.value.signedBy)
     setBusyAction(null)
     if (result.error) {
       setActionMessage({ tone: 'error', text: `공식 답변을 저장하지 못했습니다: ${result.error}` })
@@ -857,8 +864,14 @@ export default function AdminPage() {
 
               <section className="admin-drawer-section">
                 <div className="admin-drawer-section-title"><div><span>OFFICIAL REPLY</span><h3>학생회 공식 답변</h3></div>{selectedProposal.official_reply_content && <Badge tone="brandSoft">등록됨</Badge>}</div>
-                <label className="admin-field"><span>답변 내용</span><textarea rows={5} value={replyContent} onChange={event => setReplyContent(event.target.value)} placeholder="학생회 공식 입장과 처리 결과를 작성하세요." maxLength={1200} /></label>
-                <label className="admin-field"><span>서명자</span><input value={replySignedBy} onChange={event => setReplySignedBy(event.target.value)} placeholder="예: 제35대 학생회" maxLength={40} /></label>
+                <label className="admin-field">
+                  <span>답변 내용 <small>{replyContent.length} / 1200자</small></span>
+                  <textarea rows={5} value={replyContent} onChange={event => setReplyContent(event.target.value)} placeholder="학생회 공식 입장과 처리 결과를 작성하세요." maxLength={1200} />
+                </label>
+                <label className="admin-field">
+                  <span>공개 답변자 <small>{replySignedBy.length} / 40자</small></span>
+                  <input value={replySignedBy} onChange={event => setReplySignedBy(event.target.value)} placeholder="예: 제35대 학생회 또는 홍길동 학생회장" maxLength={40} />
+                </label>
                 <Btn variant="outline" size="md" full onClick={handleReplySave} disabled={busyAction !== null}>{busyAction === `${selectedProposal.id}:reply` ? '저장 중…' : '공식 답변 저장'}</Btn>
               </section>
 

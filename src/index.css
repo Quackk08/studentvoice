@@ -993,11 +993,20 @@
 }
 
 .admin-field > span {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 6px;
   color: #5c5c5c;
   font-size: 10px;
   font-weight: 700;
+}
+
+.admin-field > span small {
+  color: #9a9a95;
+  font-size: 9px;
+  font-weight: 500;
 }
 
 .admin-field input,

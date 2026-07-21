@@ -58,11 +58,13 @@ export function validateReportReason(reason: string) {
 }
 
 export function validateOfficialReply(params: { content: string; signedBy: string }) {
-  const content = normalizeText(params.content, 1200)
-  const signedBy = normalizeText(params.signedBy, 40)
+  const content = params.content.replace(CONTROL_CHARS_REPLACE_RE, '').trim()
+  const signedBy = params.signedBy.replace(CONTROL_CHARS_REPLACE_RE, '').trim()
 
-  if (content.length < 1) return { error: '답변 내용을 입력해주세요.' }
-  if (signedBy.length < 1) return { error: '서명자를 입력해주세요.' }
+  if (content.length < 3) return { error: '공식 답변 내용을 3자 이상 입력해주세요.' }
+  if (content.length > 1200) return { error: '공식 답변은 1200자 이하로 입력해주세요.' }
+  if (signedBy.length < 2) return { error: '공개 답변자를 2자 이상 입력해주세요.' }
+  if (signedBy.length > 40) return { error: '공개 답변자는 40자 이하로 입력해주세요.' }
 
   return { value: { content, signedBy } }
 }

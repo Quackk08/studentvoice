@@ -4,16 +4,19 @@ import AppLayout from '../components/shared/AppLayout'
 import Badge from '../components/shared/Badge'
 import Btn from '../components/shared/Btn'
 import ProgressBar from '../components/shared/ProgressBar'
+import OfficialReplyCard, { getDisplayableOfficialReply } from '../components/shared/OfficialReplyCard'
 import { useAuth } from '../contexts/AuthContext'
 import {
   useProposal, voteProposal, unvoteProposal, checkUserVoted,
   saveProposal, unsaveProposal, checkUserSaved, getSavesCount,
   useComments, addComment, deleteComment,
   reportProposal, deleteProposal, adminDeleteProposal, updateProposal,
-  upsertOfficialReply, adminUpdateStatus,
+  adminUpdateStatus,
 } from '../hooks/useProposals'
+import { saveAdminOfficialReply } from '../hooks/useAdminConsole'
 import { COLORS } from '../tokens/tokens'
 import { PROPOSAL_STATUS_LABELS, PROPOSAL_STATUS_TONES } from '../lib/proposalStatus'
+import { validateOfficialReply } from '../lib/security'
 import type { ProposalCategory, ProposalStatus } from '../types/database'
 
 const CATS: ProposalCategory[] = ['#시설', '#급식', '#교칙', '#학사', '#수업', '#복지', '#기타']
@@ -97,6 +100,8 @@ export default function ProposalDetailPage() {
   const { data: comments, refetch: refetchComments } = useComments(id ?? '')
 
   const IS_ADMIN = profile?.is_admin ?? false
+  const storedReply = proposal?.official_replies?.[0]
+  const existingReply = getDisplayableOfficialReply(proposal?.official_replies)
   const [actionError, setActionError] = useState<string | null>(null)
 
   // ── Vote / Save ──────────────────────────────────────────
@@ -268,21 +273,23 @@ export default function ProposalDetailPage() {
   const [replyError, setReplyError] = useState<string | null>(null)
 
   const openReplyModal = () => {
-    const existing = proposal?.official_replies?.[0]
-    setReplyContent(existing?.content ?? '')
-    setReplySignedBy(existing?.signed_by ?? profile?.name ?? '')
+    setReplyContent(storedReply?.content ?? '')
+    setReplySignedBy(storedReply?.signed_by ?? profile?.name ?? '')
     setReplyError(null)
     setReplyOpen(true)
   }
 
   const saveReply = async () => {
-    if (!replyContent.trim()) { setReplyError('답변 내용을 입력해주세요.'); return }
-    if (!replySignedBy.trim()) { setReplyError('서명자를 입력해주세요.'); return }
+    const validated = validateOfficialReply({ content: replyContent, signedBy: replySignedBy })
+    if (validated.error || !validated.value) {
+      setReplyError(validated.error ?? '공식 답변을 확인해주세요.')
+      return
+    }
     if (!id) return
     setReplySaving(true)
-    const { error } = await upsertOfficialReply(id, replyContent.trim(), replySignedBy.trim())
+    const { error } = await saveAdminOfficialReply(id, validated.value.content, validated.value.signedBy)
     setReplySaving(false)
-    if (error) { setReplyError('저장 중 오류가 발생했습니다.'); return }
+    if (error) { setReplyError(`공식 답변을 저장하지 못했습니다: ${error}`); return }
     await refetch()
     setReplyOpen(false)
   }
@@ -297,8 +304,6 @@ export default function ProposalDetailPage() {
   const createdAt    = proposal?.created_at ?? new Date().toISOString()
   const isMyProposal = user && proposal?.author_id === user.id
   const canEdit      = isMyProposal && proposal?.status === 'active'
-  const existingReply = proposal?.official_replies?.[0]
-
   if (!loading && !proposal) {
     return (
       <AppLayout active="proposals" isAdmin={IS_ADMIN}>
@@ -476,6 +481,12 @@ export default function ProposalDetailPage() {
             ) : (
               <div style={{ fontSize: 15, color: COLORS.ink, lineHeight: 1.85, marginTop: 28, letterSpacing: '-0.005em', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {body}
+              </div>
+            )}
+
+            {!editMode && existingReply && (
+              <div style={{ marginTop: 32 }}>
+                <OfficialReplyCard reply={existingReply} />
               </div>
             )}
 
@@ -775,7 +786,7 @@ export default function ProposalDetailPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <Btn variant="brand" size="sm" full onClick={openReplyModal}>
-                    {existingReply ? '학생회 답변 수정' : '학생회 답변 작성'}
+                    {storedReply ? '학생회 답변 수정' : '학생회 답변 작성'}
                   </Btn>
 
                   {/* Status change dropdown */}
@@ -874,30 +885,6 @@ export default function ProposalDetailPage() {
               ))}
             </div>
 
-            {/* Official reply (read-only, shown to all) */}
-            {existingReply && (
-              <div
-                style={{
-                  background: COLORS.surface, border: `1px solid ${COLORS.line}`,
-                  borderRadius: 16, padding: 22,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.14em',
-                    color: COLORS.brand, marginBottom: 10,
-                  }}
-                >
-                  OFFICIAL REPLY
-                </div>
-                <p style={{ fontSize: 13, color: COLORS.ink, margin: 0, lineHeight: 1.65 }}>
-                  {existingReply.content}
-                </p>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 10 }}>
-                  — {existingReply.signed_by}
-                </div>
-              </div>
-            )}
           </aside>
         </div>
       </section>
@@ -960,7 +947,7 @@ export default function ProposalDetailPage() {
       {/* ── Admin reply modal ── */}
       {replyOpen && (
         <Modal
-          title={existingReply ? '학생회 답변 수정' : '학생회 공식 답변 작성'}
+          title={storedReply ? '학생회 답변 수정' : '학생회 공식 답변 작성'}
           onClose={() => setReplyOpen(false)}
         >
           <div style={{ marginBottom: 12 }}>
@@ -970,6 +957,7 @@ export default function ProposalDetailPage() {
               onChange={e => setReplyContent(e.target.value)}
               placeholder="학생회 공식 입장을 작성해주세요…"
               rows={5}
+              maxLength={1200}
               style={{
                 width: '100%', border: `1px solid ${COLORS.line}`, borderRadius: 10,
                 padding: '12px 14px', fontSize: 13, fontFamily: 'inherit',
@@ -977,13 +965,15 @@ export default function ProposalDetailPage() {
                 resize: 'none', boxSizing: 'border-box',
               }}
             />
+            <div style={{ marginTop: 5, textAlign: 'right', fontSize: 10, color: COLORS.inkMuted }}>{replyContent.length} / 1200자</div>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>서명 (예: 대신고 학생회)</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>공개 답변자 (예: 대신고 학생회, 홍길동 학생회장)</div>
             <input
               value={replySignedBy}
               onChange={e => setReplySignedBy(e.target.value)}
               placeholder="서명자 또는 부서명"
+              maxLength={40}
               style={{
                 width: '100%', border: `1px solid ${COLORS.line}`, borderRadius: 10,
                 padding: '10px 14px', fontSize: 13, fontFamily: 'inherit',
@@ -991,6 +981,7 @@ export default function ProposalDetailPage() {
                 boxSizing: 'border-box',
               }}
             />
+            <div style={{ marginTop: 5, textAlign: 'right', fontSize: 10, color: COLORS.inkMuted }}>{replySignedBy.length} / 40자</div>
           </div>
           {replyError && (
             <div style={{ fontSize: 12, color: COLORS.warn, marginBottom: 12 }}>{replyError}</div>
